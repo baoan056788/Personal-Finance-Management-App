@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1047440854342",
+    "project_id": "nhom11-qlthuchi",
+    "storage_bucket": "nhom11-qlthuchi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1047440854342:android:35238afb11f090cea26947",
+        "android_client_info": {
+          "package_name": "com.example.personal_finance_management_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEWnAgHOCuLa97kL1hwjLG_0WMY67HWig"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
