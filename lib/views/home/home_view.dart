@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_nav_item.dart';
 import 'screens/home_screen.dart';
-import 'screens/wallet_screen.dart';
+import '../wallet/screens/wallet_list_screen.dart';
 import 'screens/report_screen.dart';
 import 'screens/utility_screen.dart';
 import 'widgets/header_widget.dart';
@@ -18,7 +18,7 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   int currentIndex = 0;
 
-  final List<AppNavItem> navItems = const [
+  final List<AppNavItem> navItems = [
     AppNavItem(
       label: 'Trang chủ',
       title: 'Quản lý chi tiêu',
@@ -32,7 +32,7 @@ class _HomeViewState extends State<HomeView> {
       title: 'Ví của tôi',
       icon: Icons.account_balance_wallet_outlined,
       activeIcon: Icons.account_balance_wallet,
-      screen: WalletScreen(),
+      screen: WalletListScreen(),
     ),
     AppNavItem(
       label: 'Báo cáo',
@@ -57,7 +57,37 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void onNotificationPressed() {
-    debugPrint('Mở màn hình thông báo');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications, color: Color(0xFFF06292)),
+            SizedBox(width: 8),
+            Text('Thông báo'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 8),
+            Icon(Icons.notifications_none, size: 56, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              'Chưa có thông báo mới',
+              style: TextStyle(color: Colors.black54, fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đóng', style: TextStyle(color: Color(0xFFF06292))),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
