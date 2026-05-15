@@ -31,16 +31,20 @@ class TransactionService {
   Future<void> createTransaction(String walletId, TransactionModel transaction, double currentWalletBalance) async {
     final batch = _firestore.batch();
 
-    // 1. Add new transaction
-    final transactionRef = _transactionsRef(walletId).doc(transaction.id);
-    batch.set(transactionRef, transaction.toMap());
+    // 1. Add new transaction (ensure walletId is set)
+    final txWithWallet = transaction.walletId.isEmpty 
+        ? transaction.copyWith(walletId: walletId) 
+        : transaction;
+        
+    final transactionRef = _transactionsRef(walletId).doc(txWithWallet.id);
+    batch.set(transactionRef, txWithWallet.toMap());
 
     // 2. Update wallet balance
     double newBalance = currentWalletBalance;
-    if (transaction.type == 'income') {
-      newBalance += transaction.amount;
+    if (txWithWallet.type == 'income') {
+      newBalance += txWithWallet.amount;
     } else {
-      newBalance -= transaction.amount;
+      newBalance -= txWithWallet.amount;
     }
 
     batch.update(_walletRef(walletId), {'balance': newBalance});
@@ -48,5 +52,133 @@ class TransactionService {
     // Commit batch
     await batch.commit();
   }
-}
 
+  Future<void> createTransactionAutoBalance(String walletId, TransactionModel transaction) async {
+    final docSnapshot = await _walletRef(walletId).get();
+    double currentBalance = 0;
+    if (docSnapshot.exists && docSnapshot.data() != null) {
+      currentBalance = ((docSnapshot.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
+    }
+    await createTransaction(walletId, transaction, currentBalance);
+  }
+
+  Future<void> updateTransaction(String walletId, TransactionModel oldTx, TransactionModel newTx) async {
+    final batch = _firestore.batch();
+    
+    // 1. If wallet changed, we need to delete from old and add to new
+    if (oldTx.walletId != walletId && oldTx.walletId.isNotEmpty) {
+       await deleteTransactionGlobal(oldTx);
+       await createTransactionAutoBalance(walletId, newTx);
+       return;
+    }
+
+    // 2. Update transaction doc
+    final transactionRef = _transactionsRef(walletId).doc(newTx.id);
+    batch.update(transactionRef, newTx.toMap());
+
+    // 3. Adjust balance if amount or type changed
+    if (oldTx.amount != newTx.amount || oldTx.type != newTx.type) {
+      final walletDoc = await _walletRef(walletId).get();
+      if (walletDoc.exists) {
+        double currentBalance = ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
+        
+        // Revert old
+        double adjustedBalance = currentBalance;
+        if (oldTx.type == 'income') {
+          adjustedBalance -= oldTx.amount;
+        } else {
+          adjustedBalance += oldTx.amount;
+        }
+        
+        // Apply new
+        if (newTx.type == 'income') {
+          adjustedBalance += newTx.amount;
+        } else {
+          adjustedBalance -= newTx.amount;
+        }
+        
+        batch.update(_walletRef(walletId), {'balance': adjustedBalance});
+      }
+    }
+    
+    await batch.commit();
+  }
+
+  Future<void> deleteTransactionGlobal(TransactionModel tx) async {
+    if (tx.walletId.isEmpty) {
+      // Legacy: try to find which wallet it belongs to
+      final wallets = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+      for (var w in wallets.docs) {
+        final doc = await w.reference.collection('transactions').doc(tx.id).get();
+        if (doc.exists) {
+          await _deleteFromWallet(w.id, tx);
+          return;
+        }
+      }
+      throw Exception('Không tìm thấy giao dịch để xóa');
+    } else {
+      await _deleteFromWallet(tx.walletId, tx);
+    }
+  }
+
+  Future<void> _deleteFromWallet(String walletId, TransactionModel tx) async {
+    final batch = _firestore.batch();
+    
+    // 1. Delete transaction
+    batch.delete(_transactionsRef(walletId).doc(tx.id));
+    
+    // 2. Revert balance
+    final walletDoc = await _walletRef(walletId).get();
+    if (walletDoc.exists) {
+      double currentBalance = ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
+      double newBalance = currentBalance;
+      if (tx.type == 'income') {
+        newBalance -= tx.amount;
+      } else {
+        newBalance += tx.amount;
+      }
+      batch.update(_walletRef(walletId), {'balance': newBalance});
+    }
+    
+    await batch.commit();
+  }
+
+  Future<List<TransactionModel>> getRecentTransactionsGlobal() async {
+    final walletsSnapshot = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+    List<TransactionModel> allTransactions = [];
+    for (var doc in walletsSnapshot.docs) {
+      final txSnapshot = await doc.reference.collection('transactions').orderBy('createdAt', descending: true).limit(5).get();
+      for (var txDoc in txSnapshot.docs) {
+        allTransactions.add(TransactionModel.fromMap(txDoc.data(), txDoc.id));
+      }
+    }
+    allTransactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return allTransactions.take(5).toList();
+  }
+
+  Future<List<TransactionModel>> getAllTransactionsGlobal() async {
+    final walletsSnapshot = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+    List<TransactionModel> allTransactions = [];
+    for (var doc in walletsSnapshot.docs) {
+      final txSnapshot = await doc.reference.collection('transactions').orderBy('createdAt', descending: true).get();
+      for (var txDoc in txSnapshot.docs) {
+        allTransactions.add(TransactionModel.fromMap(txDoc.data(), txDoc.id));
+      }
+    }
+    allTransactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return allTransactions;
+  }
+
+  Future<Map<String, double>> getMonthlyTotal(int month, int year) async {
+    final txs = await getAllTransactionsGlobal();
+    double income = 0;
+    double expense = 0;
+    for (var tx in txs) {
+      if (tx.createdAt.month == month && tx.createdAt.year == year) {
+        if (tx.type == 'income') income += tx.amount;
+        else if (tx.type == 'expense') expense += tx.amount;
+      }
+    }
+    return {'income': income, 'expense': expense};
+  }
+}

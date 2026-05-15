@@ -94,7 +94,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         'phoneNumber': user.phoneNumber,
         'avatarUrl': avatarUrl,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
       Navigator.pushReplacement(

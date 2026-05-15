@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
-import 'create_wallet_screen.dart';
+import 'add_wallet_screen.dart';
+import 'wallet_detail_screen.dart';
 import 'wallet_detail_screen.dart';
 
 class WalletListScreen extends StatefulWidget {
@@ -121,7 +122,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateWalletScreen()));
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Thêm ví mới'),
@@ -159,18 +160,27 @@ class _WalletListScreenState extends State<WalletListScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      'Tổng số dư',
-                      style: TextStyle(color: Colors.black54, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatCurrency(totalBalance),
-                      style: const TextStyle(
-                        color: Color(0xFFB02A76),
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Column(
+                          children: [
+                            const Text(
+                              'Tổng số dư',
+                              style: TextStyle(color: Colors.black54, fontSize: 16),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _formatCurrency(totalBalance),
+                              style: const TextStyle(
+                                color: Color(0xFFB02A76),
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -181,6 +191,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                   itemCount: wallets.length,
                   itemBuilder: (context, index) {
                     final wallet = wallets[index];
+
                     return Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -315,12 +326,13 @@ class _WalletListScreenState extends State<WalletListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateWalletScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
         },
         backgroundColor: const Color(0xFFB02A76),
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Thêm ví', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
