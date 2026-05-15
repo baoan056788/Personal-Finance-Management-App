@@ -61,8 +61,8 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen> {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'phoneNumber': user.phoneNumber,
         'passwordCreated': true,
-        'onboardingCompleted': false,
-        'createdAt': FieldValue.serverTimestamp(),
+        if (!widget.isResetPassword) 'onboardingCompleted': false,
+        'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (!mounted) return;

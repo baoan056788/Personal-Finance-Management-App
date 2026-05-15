@@ -1,55 +1,114 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
 
 import '../../../models/wallet_model.dart';
 import '../../../models/transaction_model.dart';
+import '../../../models/category_model.dart';
+import '../../../controllers/category_controller.dart';
 import '../services/transaction_service.dart';
 import '../services/wallet_service.dart';
-import '../../auth/widgets/custom_text_field.dart';
+import '../widgets/frequency_bottom_sheet.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  final WalletModel wallet;
+  final WalletModel? wallet;
+  final TransactionModel? initialTransaction; // NEW: support edit mode
 
-  const AddTransactionScreen({super.key, required this.wallet});
+  const AddTransactionScreen({super.key, this.wallet, this.initialTransaction});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _noteController = TextEditingController();
+  late final TextEditingController _amountController;
+  late final TextEditingController _noteController;
   
-  String _transactionType = 'expense'; // 'income', 'expense', or 'transfer'
-  String _category = 'Khác';
+  String _transactionType = 'expense';
+  CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
 
   final TransactionService _transactionService = TransactionService();
   final WalletService _walletService = WalletService();
+  final CategoryController _categoryController = CategoryController();
 
-  final List<String> _expenseCategories = ['Ăn uống', 'Di chuyển', 'Mua sắm', 'Hóa đơn', 'Giải trí', 'Khác'];
-  final List<String> _incomeCategories = ['Lương', 'Thưởng', 'Đầu tư', 'Khác'];
+  List<WalletModel> _wallets = [];
+  WalletModel? _selectedWallet;
+  
+  String _frequency = 'Không lặp lại';
+  DateTime? _endDate;
 
-  List<WalletModel> _otherWallets = [];
-  String? _selectedDestWalletId;
+  File? _selectedImage;
+  String? _remoteImageUrl; // For editing
+  final ImagePicker _picker = ImagePicker();
+
+  final Color momoPink = const Color(0xFFD82D8B);
+  final Color momoLightPink = const Color(0xFFFFF0F6);
+  final Color momoBg = const Color(0xFFF2F2F2);
+
+  bool get _isEditing => widget.initialTransaction != null;
 
   @override
   void initState() {
     super.initState();
-    _loadOtherWallets();
+    _amountController = TextEditingController();
+    _noteController = TextEditingController();
+    
+    _categoryController.setupDefaultCategoriesIfNeeded();
+    _selectedWallet = widget.wallet;
+    _loadWallets();
+    _initEditMode();
   }
 
-  void _loadOtherWallets() {
+  void _initEditMode() async {
+    if (_isEditing) {
+      final tx = widget.initialTransaction!;
+      _amountController.text = tx.amount.toInt().toString();
+      _noteController.text = tx.note;
+      _transactionType = tx.type;
+      _selectedDate = tx.createdAt;
+      _remoteImageUrl = tx.imageUrl;
+      
+      // Load and select category
+      final cats = await _categoryController.getAllCategories();
+      try {
+        if (tx.categoryId != null) {
+          _selectedCategory = cats.firstWhere((c) => c.id == tx.categoryId);
+        } else {
+          _selectedCategory = cats.firstWhere((c) => c.name == tx.category);
+        }
+      } catch (_) {}
+      
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _loadWallets() {
     _walletService.getWallets().listen((wallets) {
       if (mounted) {
         setState(() {
-          _otherWallets = wallets.where((w) => w.id != widget.wallet.id).toList();
-          if (_otherWallets.isNotEmpty && _selectedDestWalletId == null) {
-            _selectedDestWalletId = _otherWallets.first.id;
+          _wallets = wallets;
+          if (_isEditing && _selectedWallet == null) {
+             try {
+               _selectedWallet = _wallets.firstWhere((w) => w.id == widget.initialTransaction!.walletId);
+             } catch (_) {}
+          }
+          
+          if (_selectedWallet != null) {
+            try {
+              _selectedWallet = _wallets.firstWhere((w) => w.id == _selectedWallet!.id);
+            } catch (_) {
+              _selectedWallet = _wallets.isNotEmpty ? _wallets.first : null;
+            }
+          } else if (_wallets.isNotEmpty) {
+            _selectedWallet = _wallets.first;
           }
         });
       }
@@ -62,260 +121,294 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFB02A76),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(colorScheme: ColorScheme.light(primary: momoPink, onPrimary: Colors.white, onSurface: Colors.black)),
+        child: child!,
+      ),
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
     }
   }
 
+  void _openFrequencySheet() async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: FrequencyBottomSheet(initialFrequency: _frequency, initialEndDate: _endDate),
+      ),
+    );
+    if (result != null) {
+      setState(() { _frequency = result['frequency']; _endDate = result['endDate']; });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image != null) setState(() { _selectedImage = File(image.path); _remoteImageUrl = null; });
+  }
+
   Future<void> _saveTransaction() async {
-    if (!_formKey.currentState!.validate()) return;
+    final amountText = _amountController.text.replaceAll(',', '').replaceAll('.', '');
+    if (amountText.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ'))); return; }
+    final amount = double.tryParse(amountText);
+    if (amount == null || amount <= 0) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0'))); return; }
+    if (_selectedCategory == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn danh mục'))); return; }
+    if (_selectedWallet == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn nguồn tiền'))); return; }
 
     setState(() => _isLoading = true);
-
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Người dùng chưa đăng nhập');
 
-      final amount = double.parse(_amountController.text.replaceAll(',', ''));
+      String? imageUrl = _remoteImageUrl;
+      if (_selectedImage != null) {
+        try {
+          final storageRef = FirebaseStorage.instance.ref().child('transactions').child(user.uid).child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final uploadTask = storageRef.putData(await _selectedImage!.readAsBytes());
+          final snapshot = await uploadTask.whenComplete(() => null);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        } catch (e) {
+          final directory = await getApplicationDocumentsDirectory();
+          final fileName = '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
+          final savedImage = await _selectedImage!.copy('${directory.path}/$fileName');
+          imageUrl = savedImage.path;
+        }
+      }
 
-      if (_transactionType == 'transfer') {
-        if (_selectedDestWalletId == null) throw Exception('Vui lòng chọn ví đích');
-        await _walletService.transferMoney(
-          sourceWalletId: widget.wallet.id,
-          destWalletId: _selectedDestWalletId!,
-          amount: amount,
-          note: _noteController.text.trim(),
-        );
+      final transaction = TransactionModel(
+        id: _isEditing ? widget.initialTransaction!.id : FirebaseFirestore.instance.collection('dummy').doc().id,
+        amount: amount,
+        type: _transactionType,
+        category: _selectedCategory!.name,
+        categoryId: _selectedCategory!.id,
+        note: _noteController.text.trim(),
+        createdAt: _selectedDate,
+        imageUrl: imageUrl,
+        walletId: _selectedWallet!.id,
+      );
+
+      if (_isEditing) {
+        await _transactionService.updateTransaction(_selectedWallet!.id, widget.initialTransaction!, transaction);
       } else {
-        final newTxRef = FirebaseFirestore.instance.collection('dummy').doc(); 
-        final transaction = TransactionModel(
-          id: newTxRef.id,
-          amount: amount,
-          type: _transactionType,
-          category: _category,
-          note: _noteController.text.trim(),
-          createdAt: _selectedDate,
-        );
+        await _transactionService.createTransaction(_selectedWallet!.id, transaction, _selectedWallet!.balance);
+      }
 
-        await _transactionService.createTransaction(widget.wallet.id, transaction, widget.wallet.balance);
+      // Handle recurring (simplified: only for new or if not changed much)
+      if (!_isEditing && _frequency != 'Không lặp lại') {
+        final recurringRef = FirebaseFirestore.instance.collection('recurring_transactions').doc();
+        await recurringRef.set({
+          'id': recurringRef.id, 'userId': user.uid, 'name': _noteController.text.trim().isEmpty ? _selectedCategory!.name : _noteController.text.trim(),
+          'amount': amount, 'type': _transactionType, 'categoryId': _selectedCategory!.id, 'walletId': _selectedWallet!.id, 'frequency': _frequency,
+          'nextDueDate': Timestamp.fromDate(_selectedDate), 'createdAt': Timestamp.fromDate(DateTime.now()),
+          if (_endDate != null) 'endDate': Timestamp.fromDate(_endDate!), if (imageUrl != null) 'imageUrl': imageUrl,
+        });
       }
 
       if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thành công!'), backgroundColor: Colors.green),
-      );
+      Navigator.pop(context, true); // Return true to indicate change
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isEditing ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch!'), backgroundColor: Colors.green));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.redAccent),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.redAccent));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
-  void dispose() {
-    _amountController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
+  void dispose() { _amountController.dispose(); _noteController.dispose(); super.dispose(); }
 
-  Widget _buildTypeButton(String title, String type, Color color) {
-    bool isSelected = _transactionType == type;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _transactionType = type),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? color : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            title,
-            style: TextStyle(
-              color: isSelected ? Colors.white : color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: momoBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(children: [
+                    InkWell(onTap: () => Navigator.pop(context), borderRadius: BorderRadius.circular(20), child: const Padding(padding: EdgeInsets.all(4.0), child: Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.black87))),
+                    const SizedBox(width: 12),
+                    Text(_isEditing ? 'Sửa Giao Dịch' : 'Ghi Chép Giao Dịch', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  ]),
+                  Row(children: [
+                    IconButton(icon: const Icon(Icons.help_outline, color: Colors.black54), onPressed: () {}, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                    const SizedBox(width: 16),
+                    IconButton(icon: const Icon(Icons.home_outlined, color: Colors.black54), onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  ]),
+                ],
+              ),
             ),
-          ),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(30)),
+                child: Row(
+                  children: [
+                    _buildTypeTab('expense', 'Chi tiêu', Icons.arrow_outward),
+                    _buildTypeTab('income', 'Thu nhập', Icons.call_received),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(top: 10),
+                decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Hình ảnh đính kèm', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (_selectedImage != null || _remoteImageUrl != null)
+                            Container(
+                              width: 80, height: 80, margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200),
+                                image: _selectedImage != null 
+                                  ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover)
+                                  : DecorationImage(image: NetworkImage(_remoteImageUrl!), fit: BoxFit.cover),
+                              ),
+                              child: Stack(children: [Positioned(top: -4, right: -4, child: GestureDetector(onTap: () => setState(() { _selectedImage = null; _remoteImageUrl = null; }), child: Container(padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle), child: const Icon(Icons.close, size: 12, color: Colors.white))))]),
+                            ),
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              width: 80, height: 80,
+                              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid, width: 2), borderRadius: BorderRadius.circular(8)),
+                              child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_photo_alternate_outlined, color: Colors.grey), SizedBox(height: 4), Text('Thêm ảnh', style: TextStyle(fontSize: 10, color: Colors.grey))]),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Số tiền *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Row(children: [
+                              Expanded(child: TextField(controller: _amountController, keyboardType: TextInputType.number, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87), decoration: const InputDecoration(hintText: '0', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero))),
+                              const Text('đ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            ]),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text('Danh mục *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      const SizedBox(height: 12),
+                      _buildCategoryList(),
+                      const SizedBox(height: 24),
+                      const Text('Ngày giao dịch *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      GestureDetector(
+                        onTap: () => _selectDate(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text(DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(_selectedDate), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                            const Icon(Icons.calendar_today, size: 20, color: Colors.grey),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (!_isEditing) ...[
+                        const Text('Tần suất lặp lại', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        GestureDetector(
+                          onTap: _openFrequencySheet,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              Text(_frequency, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                              const Icon(Icons.autorenew, size: 20, color: Colors.grey),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      const Text('Nguồn tiền *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Expanded(child: DropdownButtonHideUnderline(child: DropdownButton<WalletModel>(
+                            value: _selectedWallet, isDense: true, isExpanded: true, icon: const SizedBox.shrink(),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                            items: _wallets.map((w) => DropdownMenuItem(value: w, child: Text(w.name))).toList(),
+                            onChanged: (val) => setState(() => _selectedWallet = val),
+                          ))),
+                          const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                        ]),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Ghi chú', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      TextField(controller: _noteController, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87), decoration: const InputDecoration(hintText: 'Nhập mô tả giao dịch', hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal), border: InputBorder.none, contentPadding: EdgeInsets.only(top: 8, bottom: 8), isDense: true)),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+      bottomSheet: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), offset: const Offset(0, -2), blurRadius: 10)]),
+        child: SafeArea(child: ElevatedButton(
+          onPressed: _isLoading ? null : _saveTransaction,
+          style: ElevatedButton.styleFrom(backgroundColor: momoPink, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0, minimumSize: const Size.fromHeight(56)),
+          child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(_isEditing ? 'Lưu thay đổi' : (_transactionType == 'expense' ? 'Thêm giao dịch chi' : 'Thêm giao dịch thu'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        )),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_transactionType != 'transfer') {
-      List<String> currentCategories = _transactionType == 'income' ? _incomeCategories : _expenseCategories;
-      if (!currentCategories.contains(_category)) {
-        _category = currentCategories.first;
-      }
-    }
+  Widget _buildTypeTab(String type, String label, IconData icon) {
+    final isSelected = _transactionType == type;
+    return Expanded(child: GestureDetector(
+      onTap: () => setState(() { _transactionType = type; if (!_isEditing) _selectedCategory = null; }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(30), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2)] : []),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 16, color: isSelected ? momoPink : Colors.grey.shade500), const SizedBox(width: 6), Text(label, style: TextStyle(fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.grey.shade500))]),
+      ),
+    ));
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Thêm giao dịch', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    _buildTypeButton('Chi tiêu', 'expense', Colors.redAccent),
-                    const SizedBox(width: 8),
-                    _buildTypeButton('Thu nhập', 'income', Colors.green),
-                    const SizedBox(width: 8),
-                    _buildTypeButton('Chuyển tiền', 'transfer', Colors.blueAccent),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                CustomTextField(
-                  label: 'Số tiền',
-                  hint: '0 ₫',
-                  controller: _amountController,
-                  prefixIcon: Icons.attach_money,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Vui lòng nhập số tiền';
-                    if (double.tryParse(value.replaceAll(',', '')) == null) return 'Số tiền không hợp lệ';
-                    return null;
-                  },
-                ),
-                if (_transactionType != 'transfer')
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9F9F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _category,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFB02A76)),
-                        items: (_transactionType == 'income' ? _incomeCategories : _expenseCategories).map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _category = newValue!;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                if (_transactionType == 'transfer')
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9F9F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedDestWalletId,
-                        isExpanded: true,
-                        hint: const Text('Chọn ví đích'),
-                        icon: const Icon(Icons.account_balance_wallet, color: Colors.blueAccent),
-                        items: _otherWallets.map((WalletModel wallet) {
-                          return DropdownMenuItem<String>(
-                            value: wallet.id,
-                            child: Text('${wallet.name} (${wallet.balance.toStringAsFixed(0)} ₫)'),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedDestWalletId = newValue;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                GestureDetector(
-                  onTap: () => _selectDate(context),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9F9F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Color(0xFFB02A76)),
-                        const SizedBox(width: 12),
-                        Text(
-                          DateFormat('dd/MM/yyyy').format(_selectedDate),
-                          style: const TextStyle(fontSize: 16, color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                CustomTextField(
-                  label: 'Ghi chú (Tùy chọn)',
-                  hint: 'Thêm thông tin...',
-                  controller: _noteController,
-                  prefixIcon: Icons.notes,
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _saveTransaction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB02A76),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('LƯU GIAO DỊCH', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  Widget _buildCategoryList() {
+    return StreamBuilder<List<CategoryModel>>(
+      stream: _categoryController.getCategories(_transactionType),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        final categories = snapshot.data ?? [];
+        return SingleChildScrollView(scrollDirection: Axis.horizontal, physics: const BouncingScrollPhysics(), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: categories.map((cat) {
+          final isSelected = _selectedCategory?.id == cat.id;
+          final catColor = Color(int.parse(cat.colorHex.replaceFirst('#', ''), radix: 16));
+          final catIcon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
+          return GestureDetector(onTap: () => setState(() => _selectedCategory = cat), child: Container(width: 72, margin: const EdgeInsets.only(right: 8), child: Column(children: [
+            Container(width: 48, height: 48, decoration: BoxDecoration(color: isSelected ? momoLightPink : Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: isSelected ? momoPink : Colors.transparent, width: 1)), child: Icon(catIcon, color: isSelected ? momoPink : catColor, size: 24)),
+            const SizedBox(height: 8), Text(cat.name, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.grey.shade600)),
+          ])));
+        }).toList()));
+      }
     );
   }
 }

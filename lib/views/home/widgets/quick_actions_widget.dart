@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../wallet/screens/wallet_list_screen.dart';
 
 class QuickActionsWidget extends StatelessWidget {
-  const QuickActionsWidget({super.key});
+  final VoidCallback? onInput;
+  final VoidCallback? onReport;
+  final VoidCallback? onCategory;
+  final VoidCallback? onUtility;
+
+  const QuickActionsWidget({
+    super.key,
+    this.onInput,
+    this.onReport,
+    this.onCategory,
+    this.onUtility,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,54 +28,22 @@ class QuickActionsWidget extends StatelessWidget {
           ActionItem(
             icon: Icons.add_circle_outline,
             text: 'Nhập',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WalletListScreen()),
-              );
-            },
+            onTap: onInput ?? () {},
           ),
           ActionItem(
             icon: Icons.bar_chart,
             text: 'Biến động',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Chuyển tới tab Báo cáo để xem biến động'),
-                  backgroundColor: Colors.teal,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            },
+            onTap: onReport ?? () {},
           ),
           ActionItem(
             icon: Icons.label_outline,
             text: 'Phân loại',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Tính năng phân loại sẽ sớm được cập nhật'),
-                  backgroundColor: Colors.teal,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            },
+            onTap: onCategory ?? () {},
           ),
           ActionItem(
             icon: Icons.apps,
             text: 'Tiện ích',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Mở tab Tiện ích ở thanh điều hướng bên dưới'),
-                  backgroundColor: Colors.teal,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            },
+            onTap: onUtility ?? () {},
           ),
         ],
       ),
