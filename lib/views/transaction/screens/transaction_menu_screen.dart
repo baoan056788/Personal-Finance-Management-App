@@ -100,11 +100,11 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       try {
         final hex = cat.colorHex.replaceFirst('#', '');
         iconColor = Color(int.parse(hex, radix: 16));
-        bg = iconColor.withOpacity(0.12);
+        bg = iconColor.withValues(alpha: 0.12);
         icon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
       } catch (_) {
         iconColor = momoPink;
-        bg = momoPink.withOpacity(0.12);
+        bg = momoPink.withValues(alpha: 0.12);
         icon = Icons.attach_money;
       }
     } else {
@@ -206,12 +206,21 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       key: _historyKey,
       future: _transactionService.getAllTransactionsGlobal(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (!snapshot.hasData || snapshot.data!.isEmpty) return _buildEmptyState();
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildEmptyState();
+        }
         List<TransactionModel> txs = snapshot.data!;
-        if (filter == 'normal') txs = txs.where((tx) => !tx.isRecurring).toList();
-        else if (filter == 'recurring') txs = txs.where((tx) => tx.isRecurring).toList();
-        if (txs.isEmpty) return _buildEmptyState();
+        if (filter == 'normal') {
+          txs = txs.where((tx) => !tx.isRecurring).toList();
+        } else if (filter == 'recurring') {
+          txs = txs.where((tx) => tx.isRecurring).toList();
+        }
+        if (txs.isEmpty) {
+          return _buildEmptyState();
+        }
         return RefreshIndicator(
           color: momoPink,
           onRefresh: () async => setState(() => _historyKey = UniqueKey()),
@@ -228,7 +237,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))]),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))]),
                   child: Row(
                     children: [
                       _categoryIcon(tx.categoryId, tx.category),
@@ -312,7 +321,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                         child: Container(
                           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                           padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))]),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))]),
                           child: Row(
                             children: [
                               _categoryIcon(tx.categoryId, tx.category),
@@ -375,12 +384,12 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]),
       child: Row(
         children: [
           _categoryIcon(tx.categoryId, tx.name, padding: 10),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(tx.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), Text('${isIncome ? '+' : '-'}${NumberFormat('#,###').format(tx.amount)}đ', style: TextStyle(color: isIncome ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 13)), const SizedBox(height: 4), Row(children: [Text(DateFormat('dd/MM/yyyy').format(tx.nextDueDate), style: const TextStyle(color: Colors.grey, fontSize: 11)), const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: chipColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)), child: Text(chipLabel, style: TextStyle(color: chipColor, fontSize: 10, fontWeight: FontWeight.bold)))])])),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(tx.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), Text('${isIncome ? '+' : '-'}${NumberFormat('#,###').format(tx.amount)}đ', style: TextStyle(color: isIncome ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 13)), const SizedBox(height: 4), Row(children: [Text(DateFormat('dd/MM/yyyy').format(tx.nextDueDate), style: const TextStyle(color: Colors.grey, fontSize: 11)), const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: chipColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)), child: Text(chipLabel, style: TextStyle(color: chipColor, fontSize: 10, fontWeight: FontWeight.bold)))])])),
           ElevatedButton(
             onPressed: () => _confirmPayment(tx), 
             style: ElevatedButton.styleFrom(backgroundColor: isIncome ? Colors.green : (daysLeft < 0 ? Colors.red : Colors.orange), elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))), 
@@ -429,10 +438,15 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       final String newTxId = FirebaseFirestore.instance.collection('dummy').doc().id;
       DateTime nextDate = recurringTx.nextDueDate;
       final freq = recurringTx.frequency.toLowerCase();
-      if (freq.contains('ngày') || freq.contains('daily')) nextDate = nextDate.add(const Duration(days: 1));
-      else if (freq.contains('tuần') || freq.contains('weekly')) nextDate = nextDate.add(const Duration(days: 7));
-      else if (freq.contains('tháng') || freq.contains('monthly')) nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day);
-      else if (freq.contains('năm') || freq.contains('yearly')) nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day);
+      if (freq.contains('ngày') || freq.contains('daily')) {
+        nextDate = nextDate.add(const Duration(days: 1));
+      } else if (freq.contains('tuần') || freq.contains('weekly')) {
+        nextDate = nextDate.add(const Duration(days: 7));
+      } else if (freq.contains('tháng') || freq.contains('monthly')) {
+        nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day);
+      } else if (freq.contains('năm') || freq.contains('yearly')) {
+        nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day);
+      }
       
       String categoryNameToSave = recurringTx.name;
       final matchedCat = _findCategory(recurringTx.categoryId, null);

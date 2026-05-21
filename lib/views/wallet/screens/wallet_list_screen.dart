@@ -5,7 +5,6 @@ import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
 import 'add_wallet_screen.dart';
 import 'wallet_detail_screen.dart';
-import 'wallet_detail_screen.dart';
 
 class WalletListScreen extends StatefulWidget {
   const WalletListScreen({super.key});
@@ -26,17 +25,17 @@ class _WalletListScreenState extends State<WalletListScreen> {
     final TextEditingController nameController = TextEditingController(text: wallet.name);
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Đổi tên ví'),
           content: TextField(
             controller: nameController,
-            decoration: const InputDecoration(hintText: 'Nhập tên mới'),
+            decoration: const InputDecoration(labelText: 'Tên ví'),
             autofocus: true,
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
@@ -53,7 +52,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                 if (newName != wallet.name) {
                   await _walletService.updateWalletName(wallet.id, newName);
                 }
-                if (mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Lưu', style: TextStyle(color: Color(0xFFB02A76))),
             ),
@@ -66,19 +65,19 @@ class _WalletListScreenState extends State<WalletListScreen> {
   void _confirmDeleteWallet(WalletModel wallet) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Xóa ví?'),
           content: Text('Bạn có chắc chắn muốn xóa ví "${wallet.name}" không? Toàn bộ giao dịch trong ví này cũng sẽ bị xóa.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () async {
                 await _walletService.deleteWallet(wallet.id);
-                if (mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Xóa', style: TextStyle(color: Colors.redAccent)),
             ),
@@ -286,7 +285,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(

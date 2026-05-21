@@ -74,20 +74,22 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Xóa danh mục'),
           content: const Text('Bạn có chắc chắn muốn xóa danh mục này?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
                 await _categoryController.deleteCategory(widget.category.id);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext); // close dialog
+                }
                 if (mounted) {
-                  Navigator.pop(context); // close dialog
                   Navigator.pop(context); // close screen
                 }
               },
@@ -300,7 +302,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Color(int.parse(_selectedColorHex.replaceFirst('#', ''), radix: 16)).withOpacity(0.1),
+                        color: Color(int.parse(_selectedColorHex.replaceFirst('#', ''), radix: 16)).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

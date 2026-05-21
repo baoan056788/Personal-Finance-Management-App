@@ -35,7 +35,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final TextEditingController nameController = TextEditingController(text: _walletName);
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Sửa tên ví'),
@@ -48,7 +48,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('HỦY', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
@@ -60,7 +60,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     _walletName = newName;
                   });
                 }
-                if (mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF06292)),
               child: const Text('LƯU', style: TextStyle(color: Colors.white)),
@@ -74,21 +74,23 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   void _showDeleteWalletDialog() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Xóa ví'),
           content: const Text('Bạn có chắc chắn muốn xóa ví này? Toàn bộ lịch sử giao dịch cũng sẽ bị xóa.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('HỦY', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
                 await _walletService.deleteWallet(widget.wallet.id);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext); // close dialog
+                }
                 if (mounted) {
-                  Navigator.pop(context); // close dialog
                   Navigator.pop(context); // go back to list
                 }
               },
@@ -155,7 +157,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 10,
                   spreadRadius: 2,
                   offset: const Offset(0, 4),
@@ -223,7 +225,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: CircleAvatar(
-                          backgroundColor: isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                          backgroundColor: isIncome ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                           child: Icon(
                             isIncome ? Icons.arrow_downward : Icons.arrow_upward,
                             color: isIncome ? Colors.green : Colors.red,

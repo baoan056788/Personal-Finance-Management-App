@@ -232,7 +232,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.05),
+                              color: Colors.grey.withValues(alpha: 0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -244,7 +244,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _parseColor(category.colorHex).withOpacity(0.1),
+                                color: _parseColor(category.colorHex).withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(

@@ -281,7 +281,7 @@ class _CreateCategoryScreenState extends State<CreateCategoryScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Color(int.parse(_selectedColorHex.replaceFirst('#', ''), radix: 16)).withOpacity(0.1),
+                        color: Color(int.parse(_selectedColorHex.replaceFirst('#', ''), radix: 16)).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

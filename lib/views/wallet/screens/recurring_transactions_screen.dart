@@ -250,7 +250,7 @@ class _RecurringTransactionsScreenState extends State<RecurringTransactionsScree
                             children: snapshot.data!.map((tx) {
                               final isIncome = tx.type == 'income';
                               final sign = isIncome ? '+' : '-';
-                              final amountStr = '${sign}${NumberFormat('#,###').format(tx.amount)}đ';
+                              final amountStr = '$sign${NumberFormat('#,###').format(tx.amount)}đ';
                               final dateStr = DateFormat('dd/MM/yyyy • HH:mm').format(tx.createdAt);
                               
                               return Padding(

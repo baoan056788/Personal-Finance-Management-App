@@ -191,26 +191,43 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         walletId: _selectedWallet!.id,
       );
 
+      String? warningMessage;
       if (_isEditing) {
-        await _transactionService.updateTransaction(_selectedWallet!.id, widget.initialTransaction!, transaction);
+        warningMessage = await _transactionService.updateTransaction(_selectedWallet!.id, widget.initialTransaction!, transaction);
       } else {
-        await _transactionService.createTransaction(_selectedWallet!.id, transaction, _selectedWallet!.balance);
+        warningMessage = await _transactionService.createTransaction(_selectedWallet!.id, transaction, _selectedWallet!.balance);
       }
 
       // Handle recurring (simplified: only for new or if not changed much)
       if (!_isEditing && _frequency != 'Không lặp lại') {
         final recurringRef = FirebaseFirestore.instance.collection('recurring_transactions').doc();
-        await recurringRef.set({
+        final data = {
           'id': recurringRef.id, 'userId': user.uid, 'name': _noteController.text.trim().isEmpty ? _selectedCategory!.name : _noteController.text.trim(),
           'amount': amount, 'type': _transactionType, 'categoryId': _selectedCategory!.id, 'walletId': _selectedWallet!.id, 'frequency': _frequency,
           'nextDueDate': Timestamp.fromDate(_selectedDate), 'createdAt': Timestamp.fromDate(DateTime.now()),
-          if (_endDate != null) 'endDate': Timestamp.fromDate(_endDate!), if (imageUrl != null) 'imageUrl': imageUrl,
-        });
+        };
+        if (_endDate != null) data['endDate'] = Timestamp.fromDate(_endDate!);
+        if (imageUrl != null) data['imageUrl'] = imageUrl;
+        await recurringRef.set(data);
       }
 
       if (!mounted) return;
       Navigator.pop(context, true); // Return true to indicate change
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isEditing ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch!'), backgroundColor: Colors.green));
+      
+      if (warningMessage != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(children: [const Icon(Icons.warning_amber_rounded, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text(warningMessage!))]),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        });
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.redAccent));
     } finally {

@@ -73,7 +73,7 @@ class CreateWalletScreen extends StatelessWidget {
                         width: 180,
                         height: 180,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDCC8D6).withOpacity(0.5),
+                          color: const Color(0xFFDCC8D6).withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
                       ),

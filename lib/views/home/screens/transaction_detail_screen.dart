@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/transaction_model.dart';
 import '../../../models/category_model.dart';
 import '../../../controllers/category_controller.dart';
@@ -179,8 +178,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: tx.imageUrl!.startsWith('http') 
-                        ? Image.network(tx.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildImagePlaceholder())
-                        : Image.file(File(tx.imageUrl!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildImagePlaceholder()),
+                        ? Image.network(tx.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _buildImagePlaceholder())
+                        : Image.file(File(tx.imageUrl!), fit: BoxFit.cover, errorBuilder: (_, _, _) => _buildImagePlaceholder()),
                     ),
                   ],
                 ),
@@ -210,7 +209,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         final hex = cat.colorHex.replaceFirst('#', '');
         final color = Color(int.parse(hex, radix: 16));
         return Container(
-          width: 72, height: 72, decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+          width: 72, height: 72, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
           child: Icon(IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons'), color: color, size: 36),
         );
       } catch (_) {}
