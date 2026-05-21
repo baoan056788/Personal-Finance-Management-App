@@ -4,6 +4,7 @@ import '../widgets/quick_actions_widget.dart';
 import '../widgets/summary_widget.dart';
 import '../widgets/recent_transactions_widget.dart';
 import '../widgets/budget_summary_widget.dart';
+import '../widgets/goal_summary_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onViewAllTransactions;
@@ -53,6 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
             RecentTransactionsWidget(key: ValueKey('recent_$_refreshKey'), onViewAll: widget.onViewAllTransactions),
             const SizedBox(height: 20),
             BudgetSummaryWidget(key: ValueKey('budget_$_refreshKey')),
+            const SizedBox(height: 20),
+            GoalSummaryWidget(key: ValueKey('goal_$_refreshKey')),
           ],
         ),
       ),

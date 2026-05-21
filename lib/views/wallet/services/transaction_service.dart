@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/transaction_model.dart';
 import '../../../controllers/budget_controller.dart';
+import '../../../controllers/goal_controller.dart';
 
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BudgetController _budgetController = BudgetController();
+  final GoalController _goalController = GoalController();
 
   String get _uid {
     final user = FirebaseAuth.instance.currentUser;
@@ -109,6 +111,7 @@ class TransactionService {
 
     // Hook budget recalculation
     await _budgetController.rollbackBudget(oldTx);
+    await _goalController.handleTransactionUpdated(newTx);
     return await _budgetController.recalculateBudget(newTx);
   }
 
@@ -152,6 +155,7 @@ class TransactionService {
 
     // Hook budget rollback
     await _budgetController.rollbackBudget(tx);
+    await _goalController.handleTransactionDeleted(tx.id);
   }
 
   Future<List<TransactionModel>> getRecentTransactionsGlobal() async {

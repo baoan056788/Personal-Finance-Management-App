@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/budget_model.dart';
+import '../../../models/category_model.dart';
 import '../../../controllers/budget_controller.dart';
+import '../../../controllers/category_controller.dart';
 import '../../budget/screens/budget_list_screen.dart';
+import '../../budget/screens/budget_detail_screen.dart';
 
 class BudgetSummaryWidget extends StatefulWidget {
   final Key? refreshKey;
@@ -14,17 +17,25 @@ class BudgetSummaryWidget extends StatefulWidget {
 
 class _BudgetSummaryWidgetState extends State<BudgetSummaryWidget> {
   final BudgetController _budgetController = BudgetController();
+  final CategoryController _categoryController = CategoryController();
+  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
   final Color momoPink = const Color(0xFFD82D8B);
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<BudgetModel>>(
-      key: widget.refreshKey,
-      stream: _budgetController.getBudgets(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text('Lỗi tải ngân sách: ${snapshot.error}');
-        }
+    return FutureBuilder<List<CategoryModel>>(
+      future: _categoryController.getAllCategories(),
+      builder: (context, categorySnapshot) {
+        final categories = categorySnapshot.data ?? [];
+        
+        return StreamBuilder<List<BudgetModel>>(
+          key: widget.refreshKey,
+          stream: _budgetController.getBudgets(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Text('Lỗi tải ngân sách: ${snapshot.error}');
+            }
 
         final budgets = snapshot.data ?? [];
         final now = DateTime.now();
@@ -42,69 +53,87 @@ class _BudgetSummaryWidgetState extends State<BudgetSummaryWidget> {
         }
 
         activeBudgets.sort((a, b) => b.limitAmount.compareTo(a.limitAmount));
-        final displayBudgets = activeBudgets.take(3).toList();
+        final displayBudgets = _isExpanded ? activeBudgets.take(3).toList() : activeBudgets.take(1).toList();
+        final hasMore = activeBudgets.length > 1;
 
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const BudgetListScreen()),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withAlpha(20),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Ngân sách tháng này',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333),
+                        color: Colors.black87,
                       ),
                     ),
-                    Text(
-                      'Chi tiết',
-                      style: TextStyle(
-                        color: momoPink,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetListScreen()));
+                      },
+                      child: Text(
+                        'Xem tất cả',
+                        style: TextStyle(
+                          color: momoPink,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Column(
-                  children: displayBudgets.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final budget = entry.value;
-                    return Column(
-                      children: [
-                        _buildBudgetItem(budget, context),
-                        if (index < displayBudgets.length - 1) ...[
-                          const SizedBox(height: 16),
-                          Divider(height: 1, color: Colors.grey.shade200),
-                          const SizedBox(height: 16),
-                        ],
-                      ],
-                    );
-                  }).toList(),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                child: Column(
+                  children: displayBudgets.map((budget) => _buildBudgetItem(budget, categories)).toList(),
                 ),
-              ],
-            ),
+              ),
+              if (hasMore)
+                InkWell(
+                  onTap: () => setState(() => _isExpanded = !_isExpanded),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_isExpanded ? 'Thu gọn' : 'Xem thêm', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                )
+            ],
           ),
         );
       },
     );
+  });
   }
 
-  Widget _buildBudgetItem(BudgetModel budget, BuildContext context) {
+  Widget _buildBudgetItem(BudgetModel budget, List<CategoryModel> categories) {
     Color statusColor = Colors.green;
     if (budget.status == 'WARNING') {
       statusColor = Colors.orange;
@@ -114,99 +143,62 @@ class _BudgetSummaryWidgetState extends State<BudgetSummaryWidget> {
       statusColor = Colors.red;
     }
 
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final category = categories.firstWhere(
+      (c) => c.id == budget.categoryId, 
+      orElse: () => CategoryModel(id: '', userId: '', name: '', type: '', iconCode: 'e84f', colorHex: 'FF9E9E9E', isDefault: false)
+    );
+    final IconData catIcon = IconData(int.parse(category.iconCode, radix: 16), fontFamily: 'MaterialIcons');
+    final Color catColor = Color(int.parse(category.colorHex.replaceFirst('#', ''), radix: 16));
+
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BudgetDetailScreen(budget: budget))),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.pie_chart,
+            SizedBox(
+              width: 50, height: 50,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CircularProgressIndicator(
+                    value: budget.progressPercent > 1.0 ? 1.0 : budget.progressPercent,
+                    backgroundColor: Colors.grey[200],
                     color: statusColor,
-                    size: 20,
+                    strokeWidth: 5,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  budget.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              '${(budget.progressPercent * 100).toStringAsFixed(1)}%',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: statusColor,
+                  Center(
+                    child: Icon(
+                      catIcon,
+                      color: catColor,
+                      size: 20,
+                    ),
+                  )
+                ],
               ),
             ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(budget.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text('${_currencyFormat.format(budget.spentAmount)} / ${_currencyFormat.format(budget.limitAmount)}', style: TextStyle(color: Colors.grey[800], fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Còn ${_currencyFormat.format(budget.remainAmount)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text('${(budget.progressPercent * 100).toStringAsFixed(0)}%', style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  )
+                ],
+              ),
+            )
           ],
         ),
-        const SizedBox(height: 16),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: budget.progressPercent > 1.0 ? 1.0 : budget.progressPercent,
-            backgroundColor: Colors.grey.shade200,
-            color: statusColor,
-            minHeight: 8,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Đã chi',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${NumberFormat('#,###').format(budget.spentAmount)}đ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  'Còn lại',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${NumberFormat('#,###').format(budget.remainAmount)}đ',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: budget.remainAmount < 0 ? Colors.red : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
@@ -222,6 +214,13 @@ class _BudgetSummaryWidgetState extends State<BudgetSummaryWidget> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withAlpha(20),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,9 +231,9 @@ class _BudgetSummaryWidgetState extends State<BudgetSummaryWidget> {
                 const Text(
                   'Ngân sách tháng này',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
+                    color: Colors.black87,
                   ),
                 ),
                 Text(
