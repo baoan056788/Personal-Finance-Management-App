@@ -5,6 +5,7 @@ import '../../auth/screens/login_screen.dart';
 import '../../auth/screens/create_profile_screen.dart';
 import '../../auth/screens/create_password_screen.dart';
 import '../../budget/screens/budget_list_screen.dart';
+import '../../goal/screens/goal_list_screen.dart';
 
 class UtilityScreen extends StatelessWidget {
   const UtilityScreen({super.key});
@@ -190,6 +191,14 @@ class UtilityScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const BudgetListScreen()),
+            ),
+          ),
+          _buildSettingsTile(
+            icon: Icons.savings_outlined,
+            title: 'Quản lý Mục tiêu tiết kiệm',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const GoalListScreen()),
             ),
           ),
           _buildSettingsTile(

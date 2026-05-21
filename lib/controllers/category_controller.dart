@@ -24,6 +24,7 @@ class CategoryController {
         CategoryModel(id: '', userId: userId!, name: 'Di chuyển', type: 'expense', iconCode: 'e531', colorHex: 'FF2196F3', isDefault: true),
         CategoryModel(id: '', userId: userId!, name: 'Mua sắm', type: 'expense', iconCode: 'e8cc', colorHex: 'FFFF9800', isDefault: true),
         CategoryModel(id: '', userId: userId!, name: 'Hóa đơn', type: 'expense', iconCode: 'e8b0', colorHex: 'FF9C27B0', isDefault: true),
+        CategoryModel(id: '', userId: userId!, name: 'Tiết Kiệm', type: 'expense', iconCode: 'e890', colorHex: 'FF4CAF50', isDefault: true),
         // Income
         CategoryModel(id: '', userId: userId!, name: 'Lương', type: 'income', iconCode: 'e53d', colorHex: 'FF4CAF50', isDefault: true),
         CategoryModel(id: '', userId: userId!, name: 'Thưởng', type: 'income', iconCode: 'e838', colorHex: 'FFFFEB3B', isDefault: true),
@@ -33,6 +34,37 @@ class CategoryController {
         await addCategory(cat);
       }
     }
+  }
+
+  // Ensure 'Tiết Kiệm' category exists and return it
+  Future<CategoryModel> getOrCreateSavingCategory() async {
+    if (userId == null) throw Exception("User not logged in");
+    
+    final snapshot = await _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .where('name', isEqualTo: 'Tiết Kiệm')
+        .where('type', isEqualTo: 'expense')
+        .limit(1)
+        .get();
+        
+    if (snapshot.docs.isNotEmpty) {
+      return CategoryModel.fromMap(snapshot.docs.first.data(), snapshot.docs.first.id);
+    }
+    
+    // Create it if not exists
+    final docRef = _firestore.collection(_collection).doc();
+    final newCategory = CategoryModel(
+      id: docRef.id,
+      userId: userId!,
+      name: 'Tiết Kiệm',
+      type: 'expense',
+      iconCode: 'e890', // savings icon
+      colorHex: 'FF4CAF50',
+      isDefault: true,
+    );
+    await docRef.set(newCategory.toMap());
+    return newCategory;
   }
 
   // Get categories stream
