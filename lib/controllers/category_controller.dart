@@ -93,6 +93,16 @@ class CategoryController {
         .toList();
   }
 
+  // Get category by ID
+  Future<CategoryModel?> getCategoryById(String id) async {
+    if (userId == null) return null;
+    final doc = await _firestore.collection(_collection).doc(id).get();
+    if (doc.exists && doc.data() != null) {
+      return CategoryModel.fromMap(doc.data()!, doc.id);
+    }
+    return null;
+  }
+
   // Add category
   Future<void> addCategory(CategoryModel category) async {
     if (userId == null) return;

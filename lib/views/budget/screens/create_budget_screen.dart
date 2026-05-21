@@ -21,18 +21,43 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   final CategoryController _categoryController = CategoryController();
   
   CategoryModel? _selectedCategory;
-  String _periodType = 'MONTHLY'; // DAILY, WEEKLY, MONTHLY, YEARLY
+  String _periodType = 'MONTHLY'; 
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
-  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0); // Last day of month
+  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0); 
   
   bool _isLoading = false;
-  final Color momoPink = const Color(0xFFD82D8B);
+  final Color momoPink = const Color(0xFFE91E63);
 
+  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '');
+  
   @override
   void initState() {
     super.initState();
+    _amountController.addListener(_formatCurrency);
   }
   
+  void _formatCurrency() {
+    String text = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.isNotEmpty) {
+      final formatted = _currencyFormat.format(int.parse(text)).trim();
+      if (_amountController.text != formatted) {
+        _amountController.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.removeListener(_formatCurrency);
+    _amountController.dispose();
+    _nameController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
   void _updateDatesBasedOnPeriod() {
     final now = DateTime.now();
     switch (_periodType) {
@@ -53,9 +78,6 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       case 'YEARLY':
         _startDate = DateTime(now.year, 1, 1);
         _endDate = DateTime(now.year, 12, 31, 23, 59, 59);
-        break;
-      case 'CUSTOM':
-        // Keep user's manual selection
         break;
     }
   }
@@ -85,8 +107,96 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     }
   }
 
+  void _showCategoryPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildCategoryBottomSheet(),
+    );
+  }
+
+  Widget _buildCategoryBottomSheet() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          const Text('Chọn danh mục', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: StreamBuilder<List<CategoryModel>>(
+              stream: _categoryController.getCategories('expense'),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                final categories = snapshot.data ?? [];
+                
+                return GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 24,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = categories[index];
+                    final catColor = Color(int.parse(cat.colorHex.replaceFirst('#', ''), radix: 16));
+                    final catIcon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
+                    final isSelected = _selectedCategory?.id == cat.id;
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedCategory = cat);
+                        Navigator.pop(context);
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 56, height: 56,
+                            decoration: BoxDecoration(
+                              color: isSelected ? momoPink : catColor.withAlpha(25),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: isSelected ? [BoxShadow(color: momoPink.withAlpha(80), blurRadius: 10, offset: const Offset(0, 4))] : null,
+                            ),
+                            child: Icon(catIcon, color: isSelected ? Colors.white : catColor, size: 28),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            cat.name,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected ? momoPink : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveBudget() async {
-    final amountText = _amountController.text.replaceAll(',', '').replaceAll('.', '');
+    final amountText = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập giới hạn ngân sách')));
       return;
@@ -115,7 +225,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       
       final newBudget = BudgetModel(
         id: '',
-        userId: '', // populated in controller
+        userId: '', 
         categoryId: _selectedCategory!.id,
         name: name,
         limitAmount: limitAmount,
@@ -135,11 +245,10 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tạo ngân sách thành công!'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tạo ngân sách thành công!')));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -148,7 +257,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -162,120 +271,222 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 10),
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 5))],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Giới hạn ngân sách *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const Text('Số tiền hạn mức', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Expanded(
+                      IntrinsicWidth(
                         child: TextField(
                           controller: _amountController,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
-                          decoration: const InputDecoration(
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black87),
+                          decoration: InputDecoration(
                             hintText: '0',
+                            hintStyle: TextStyle(color: Colors.grey.shade300),
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),
-                      const Text('đ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(width: 4),
+                      Text('đ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
                     ],
                   ),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  const Text('Tên ngân sách', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  TextField(
-                    controller: _nameController,
-                    style: const TextStyle(fontSize: 16, color: Colors.black87),
-                    decoration: const InputDecoration(
-                      hintText: 'VD: Ngân sách tháng này',
-                      hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
-                      border: InputBorder.none,
+                ],
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('Tên ngân sách (Tùy chọn)'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextField(
+                      controller: _nameController,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      decoration: const InputDecoration(
+                        hintText: 'VD: Chi tiêu tháng này',
+                        hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
+                        border: InputBorder.none,
+                      ),
                     ),
                   ),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  const Text('Danh mục *', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  const SizedBox(height: 12),
-                  _buildCategoryList(),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  const Text('Chu kỳ', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  DropdownButton<String>(
-                    value: _periodType,
-                    isExpanded: true,
-                    underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'DAILY', child: Text('Hàng ngày')),
-                      DropdownMenuItem(value: 'WEEKLY', child: Text('Hàng tuần')),
-                      DropdownMenuItem(value: 'MONTHLY', child: Text('Hàng tháng')),
-                      DropdownMenuItem(value: 'YEARLY', child: Text('Hàng năm')),
-                      DropdownMenuItem(value: 'CUSTOM', child: Text('Tùy chỉnh')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _periodType = val;
-                          _updateDatesBasedOnPeriod();
-                        });
-                      }
-                    },
+                  
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Danh mục *'),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _showCategoryPicker,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _selectedCategory != null ? momoPink.withAlpha(15) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _selectedCategory != null ? momoPink.withAlpha(50) : Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          if (_selectedCategory != null) ...[
+                            Icon(
+                              IconData(int.parse(_selectedCategory!.iconCode, radix: 16), fontFamily: 'MaterialIcons'),
+                              color: Color(int.parse(_selectedCategory!.colorHex.replaceFirst('#', ''), radix: 16)),
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(_selectedCategory!.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                          ] else ...[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+                              child: const Icon(Icons.grid_view_rounded, color: Colors.grey, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: Text('Chọn danh mục', style: TextStyle(fontSize: 16, color: Colors.grey))),
+                          ],
+                          const Icon(Icons.chevron_right, color: Colors.grey),
+                        ],
+                      ),
+                    ),
                   ),
-                  const Divider(),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSectionTitle('Chu kỳ'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: momoPink.withAlpha(20),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: DropdownButton<String>(
+                          value: _periodType,
+                          underline: const SizedBox(),
+                          icon: Icon(Icons.keyboard_arrow_down, color: momoPink),
+                          style: TextStyle(color: momoPink, fontWeight: FontWeight.bold, fontSize: 14),
+                          items: const [
+                            DropdownMenuItem(value: 'DAILY', child: Text('Hàng ngày')),
+                            DropdownMenuItem(value: 'WEEKLY', child: Text('Hàng tuần')),
+                            DropdownMenuItem(value: 'MONTHLY', child: Text('Hàng tháng')),
+                            DropdownMenuItem(value: 'YEARLY', child: Text('Hàng năm')),
+                            DropdownMenuItem(value: 'CUSTOM', child: Text('Tùy chỉnh')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _periodType = val;
+                                _updateDatesBasedOnPeriod();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Từ ngày', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                            InkWell(
-                              onTap: () => _selectDate(context, true),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
-                              ),
+                        child: GestureDetector(
+                          onTap: () => _selectDate(context, true),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                          ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Từ ngày', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 16, color: Colors.black87),
+                                    const SizedBox(width: 8),
+                                    Text(DateFormat('dd/MM/yy').format(_startDate), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Đến ngày', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                            InkWell(
-                              onTap: () => _selectDate(context, false),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
-                              ),
+                        child: GestureDetector(
+                          onTap: () => _selectDate(context, false),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                          ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Đến ngày', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.event, size: 16, color: Colors.black87),
+                                    const SizedBox(width: 8),
+                                    Text(DateFormat('dd/MM/yy').format(_endDate), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  const Text('Ghi chú', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  TextField(
-                    controller: _noteController,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                    decoration: const InputDecoration(
-                      hintText: 'Nhập ghi chú (tùy chọn)',
-                      hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
-                      border: InputBorder.none,
+                  
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Ghi chú (Tùy chọn)'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextField(
+                      controller: _noteController,
+                      maxLines: 3,
+                      minLines: 1,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      decoration: const InputDecoration(
+                        hintText: 'Thêm ghi chú của bạn',
+                        hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
+                        border: InputBorder.none,
+                      ),
                     ),
                   ),
                 ],
@@ -285,29 +496,22 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
           ],
         ),
       ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              offset: const Offset(0, -2),
-              blurRadius: 10,
-            )
-          ]
-        ),
-        child: SafeArea(
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton(
             onPressed: _isLoading ? null : _saveBudget,
             style: ElevatedButton.styleFrom(
               backgroundColor: momoPink,
-              padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              minimumSize: const Size.fromHeight(56),
+              elevation: 4,
+              shadowColor: momoPink.withAlpha(100),
             ),
             child: _isLoading 
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
               : const Text('Lưu Ngân Sách', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ),
@@ -315,58 +519,10 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     );
   }
 
-  Widget _buildCategoryList() {
-    return StreamBuilder<List<CategoryModel>>(
-      stream: _categoryController.getCategories('expense'),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        final categories = snapshot.data ?? [];
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: categories.map((cat) {
-              final isSelected = _selectedCategory?.id == cat.id;
-              final catColor = Color(int.parse(cat.colorHex.replaceFirst('#', ''), radix: 16));
-              final catIcon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
-              
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = cat),
-                child: Container(
-                  width: 72,
-                  margin: const EdgeInsets.only(right: 8),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFFFF0F6) : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isSelected ? momoPink : Colors.transparent, width: 1),
-                        ),
-                        child: Icon(catIcon, color: isSelected ? momoPink : catColor, size: 24),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        cat.name,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? momoPink : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      }
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
     );
   }
 }
