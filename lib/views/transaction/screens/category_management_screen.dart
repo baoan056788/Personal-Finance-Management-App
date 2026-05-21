@@ -58,7 +58,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> wit
                   isDefault: false,
                 );
                 await _categoryController.addCategory(newCat);
-                if (mounted) Navigator.pop(ctx);
+                if (ctx.mounted) Navigator.pop(ctx);
               }
             },
             child: const Text('Thêm'),

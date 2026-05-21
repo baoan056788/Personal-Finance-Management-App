@@ -71,12 +71,12 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
       try {
         final hex = cat.colorHex.replaceFirst('#', '');
         iconColor = Color(int.parse(hex, radix: 16));
-        bg = iconColor.withOpacity(0.12);
+        bg = iconColor.withValues(alpha: 0.12);
         icon = IconData(int.parse(cat.iconCode, radix: 16),
             fontFamily: 'MaterialIcons');
       } catch (_) {
         iconColor = isIncome ? Colors.green : const Color(0xFFE0248A);
-        bg = iconColor.withOpacity(0.12);
+        bg = iconColor.withValues(alpha: 0.12);
         icon = isIncome ? Icons.add : Icons.remove;
       }
     } else {
@@ -91,7 +91,7 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
       }
 
       iconColor = isIncome ? Colors.green : const Color(0xFFE0248A);
-      bg = iconColor.withOpacity(0.12);
+      bg = iconColor.withValues(alpha: 0.12);
       icon = isIncome
           ? Icons.account_balance_wallet
           : Icons.attach_money;

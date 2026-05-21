@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../auth/screens/create_profile_screen.dart';
 import '../../auth/screens/create_password_screen.dart';
+import '../../budget/screens/budget_list_screen.dart';
 
 class UtilityScreen extends StatelessWidget {
   const UtilityScreen({super.key});
@@ -65,7 +66,7 @@ class UtilityScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
+            color: Colors.grey.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -77,7 +78,7 @@ class UtilityScreen extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF06292).withOpacity(0.1),
+            color: const Color(0xFFF06292).withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: const Color(0xFFF06292)),
@@ -140,7 +141,7 @@ class UtilityScreen extends StatelessWidget {
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                               image: avatarUrl != null && avatarUrl.startsWith('http')
                                   ? DecorationImage(
@@ -183,6 +184,14 @@ class UtilityScreen extends StatelessWidget {
           const Text('Cài đặt chung',
               style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 16),
+          _buildSettingsTile(
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'Quản lý Ngân sách',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BudgetListScreen()),
+            ),
+          ),
           _buildSettingsTile(
             icon: Icons.person_outline,
             title: 'Chỉnh sửa hồ sơ',
@@ -240,7 +249,7 @@ class UtilityScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF06292).withOpacity(0.2),
+                  color: const Color(0xFFF06292).withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

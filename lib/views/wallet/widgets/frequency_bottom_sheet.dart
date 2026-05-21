@@ -156,7 +156,7 @@ class _FrequencyBottomSheetState extends State<FrequencyBottomSheet> {
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 decoration: isSelected ? BoxDecoration(
                                   color: const Color(0xFFFFF0F6), // momoLightPink
-                                  border: Border.all(color: momoPink.withOpacity(0.5)),
+                                  border: Border.all(color: momoPink.withValues(alpha: 0.5)),
                                   borderRadius: BorderRadius.circular(8),
                                 ) : null,
                                 child: Row(

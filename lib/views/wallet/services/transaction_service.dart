@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/transaction_model.dart';
+import '../../../controllers/budget_controller.dart';
 
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final BudgetController _budgetController = BudgetController();
 
   String get _uid {
     final user = FirebaseAuth.instance.currentUser;
@@ -28,7 +30,7 @@ class TransactionService {
             .toList());
   }
 
-  Future<void> createTransaction(String walletId, TransactionModel transaction, double currentWalletBalance) async {
+  Future<String?> createTransaction(String walletId, TransactionModel transaction, double currentWalletBalance) async {
     final batch = _firestore.batch();
 
     // 1. Add new transaction (ensure walletId is set)
@@ -51,25 +53,27 @@ class TransactionService {
 
     // Commit batch
     await batch.commit();
+
+    // Hook budget recalculation
+    return await _budgetController.recalculateBudget(txWithWallet);
   }
 
-  Future<void> createTransactionAutoBalance(String walletId, TransactionModel transaction) async {
+  Future<String?> createTransactionAutoBalance(String walletId, TransactionModel transaction) async {
     final docSnapshot = await _walletRef(walletId).get();
     double currentBalance = 0;
     if (docSnapshot.exists && docSnapshot.data() != null) {
       currentBalance = ((docSnapshot.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
     }
-    await createTransaction(walletId, transaction, currentBalance);
+    return await createTransaction(walletId, transaction, currentBalance);
   }
 
-  Future<void> updateTransaction(String walletId, TransactionModel oldTx, TransactionModel newTx) async {
+  Future<String?> updateTransaction(String walletId, TransactionModel oldTx, TransactionModel newTx) async {
     final batch = _firestore.batch();
     
     // 1. If wallet changed, we need to delete from old and add to new
     if (oldTx.walletId != walletId && oldTx.walletId.isNotEmpty) {
        await deleteTransactionGlobal(oldTx);
-       await createTransactionAutoBalance(walletId, newTx);
-       return;
+       return await createTransactionAutoBalance(walletId, newTx);
     }
 
     // 2. Update transaction doc
@@ -102,6 +106,10 @@ class TransactionService {
     }
     
     await batch.commit();
+
+    // Hook budget recalculation
+    await _budgetController.rollbackBudget(oldTx);
+    return await _budgetController.recalculateBudget(newTx);
   }
 
   Future<void> deleteTransactionGlobal(TransactionModel tx) async {
@@ -141,6 +149,9 @@ class TransactionService {
     }
     
     await batch.commit();
+
+    // Hook budget rollback
+    await _budgetController.rollbackBudget(tx);
   }
 
   Future<List<TransactionModel>> getRecentTransactionsGlobal() async {
@@ -175,8 +186,11 @@ class TransactionService {
     double expense = 0;
     for (var tx in txs) {
       if (tx.createdAt.month == month && tx.createdAt.year == year) {
-        if (tx.type == 'income') income += tx.amount;
-        else if (tx.type == 'expense') expense += tx.amount;
+        if (tx.type == 'income') {
+          income += tx.amount;
+        } else if (tx.type == 'expense') {
+          expense += tx.amount;
+        }
       }
     }
     return {'income': income, 'expense': expense};

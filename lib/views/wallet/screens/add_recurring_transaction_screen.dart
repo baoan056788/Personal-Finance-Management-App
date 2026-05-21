@@ -442,7 +442,6 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: categories.map((cat) {
                                     final isSelected = _selectedCategory?.id == cat.id;
-                                    final catColor = Color(int.parse(cat.colorHex.replaceFirst('#', ''), radix: 16));
                                     final catIcon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
 
                                     return GestureDetector(

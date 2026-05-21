@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/quick_actions_widget.dart';
 import '../widgets/summary_widget.dart';
 import '../widgets/recent_transactions_widget.dart';
+import '../widgets/budget_summary_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onViewAllTransactions;
@@ -50,6 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
             SummaryWidget(key: _refreshKey),
             const SizedBox(height: 20),
             RecentTransactionsWidget(key: ValueKey('recent_$_refreshKey'), onViewAll: widget.onViewAllTransactions),
+            const SizedBox(height: 20),
+            BudgetSummaryWidget(key: ValueKey('budget_$_refreshKey')),
           ],
         ),
       ),

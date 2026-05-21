@@ -32,6 +32,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Không thể chọn ảnh: $e'), backgroundColor: Colors.redAccent),
       );
@@ -333,7 +334,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                           color: const Color(0xFFFDFDFD),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
                           ],
                         ),
                         child: Row(

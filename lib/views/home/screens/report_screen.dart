@@ -17,7 +17,7 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   String _timePeriod = 'Theo tuần';
   String _reportType = 'Chi tiêu';
-  bool _compareWithPrevious = false;
+  final bool _compareWithPrevious = false;
 
   final Color momoPink = const Color(0xFFE0248A);
   final Color momoLightPink = const Color(0xFFFFF0F6);
@@ -88,7 +88,7 @@ class _ReportScreenState extends State<ReportScreen> {
         final color = Color(int.parse(hex, radix: 16));
         return Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
           child: Icon(IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons'), color: color, size: 20),
         );
       } catch (_) {}
@@ -284,11 +284,17 @@ class _ReportScreenState extends State<ReportScreen> {
         int currentWeekday = now.weekday;
         DateTime startOfWeek = now.subtract(Duration(days: currentWeekday - 1));
         DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
-        if (tx.createdAt.isAfter(startOfWeek.subtract(const Duration(days: 1))) && tx.createdAt.isBefore(endOfWeek.add(const Duration(days: 1)))) inPeriod = true;
+        if (tx.createdAt.isAfter(startOfWeek.subtract(const Duration(days: 1))) && tx.createdAt.isBefore(endOfWeek.add(const Duration(days: 1)))) {
+          inPeriod = true;
+        }
       } else if (_timePeriod == 'Theo tháng') {
-        if (tx.createdAt.month == now.month && tx.createdAt.year == now.year) inPeriod = true;
+        if (tx.createdAt.month == now.month && tx.createdAt.year == now.year) {
+          inPeriod = true;
+        }
       } else {
-        if (tx.createdAt.year == now.year) inPeriod = true;
+        if (tx.createdAt.year == now.year) {
+          inPeriod = true;
+        }
       }
 
       if (inPeriod) {
@@ -339,9 +345,14 @@ class _ReportScreenState extends State<ReportScreen> {
       double p = prevData[i] / 1000000;
       if (c.abs() > maxVal) maxVal = c.abs();
       if (p.abs() > maxVal) maxVal = p.abs();
-      if ((p+c).abs() > maxVal && _reportType != 'Chênh lệch') maxVal = (p+c).abs();
-      if (_reportType == 'Chênh lệch') groups.add(_makeDiffGroup(i, c));
-      else groups.add(_makeStackedGroup(i, p, p + c));
+      if ((p+c).abs() > maxVal && _reportType != 'Chênh lệch') {
+        maxVal = (p+c).abs();
+      }
+      if (_reportType == 'Chênh lệch') {
+        groups.add(_makeDiffGroup(i, c));
+      } else {
+        groups.add(_makeStackedGroup(i, p, p + c));
+      }
     }
     
     double maxY = maxVal > 0 ? (maxVal * 1.2) : 10.0;
@@ -386,11 +397,11 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildTimeTab(String title) {
     bool isSelected = _timePeriod == title;
-    return Expanded(child: GestureDetector(onTap: () => setState(() => _timePeriod = title), child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : []), alignment: Alignment.center, child: Text(title, style: TextStyle(fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.black54)))));
+    return Expanded(child: GestureDetector(onTap: () => setState(() => _timePeriod = title), child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : []), alignment: Alignment.center, child: Text(title, style: TextStyle(fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.black54)))));
   }
 
   Widget _buildTypeTab(String title) {
     bool isSelected = _reportType == title;
-    return Expanded(child: GestureDetector(onTap: () => setState(() => _reportType = title), child: Container(padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isSelected ? momoPink : Colors.transparent, width: 2))), alignment: Alignment.center, child: Text(title, style: TextStyle(fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.grey.shade500)))));
+    return Expanded(child: GestureDetector(onTap: () => setState(() => _reportType = title), child: Container(padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isSelected ? momoPink : Colors.transparent, width: 2))), alignment: Alignment.center, child: Text(title, style: TextStyle(fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? momoPink : Colors.grey.shade500)))));
   }
 }
