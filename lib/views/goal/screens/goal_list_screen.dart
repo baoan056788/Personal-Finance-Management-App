@@ -279,7 +279,10 @@ class _GoalListScreenState extends State<GoalListScreen> {
 
   Widget _buildGoalCard(GoalModel goal) {
     Color mainColor = Color(int.parse(goal.colorHex, radix: 16));
-    int remainingDays = goal.targetDate.difference(DateTime.now()).inDays;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(goal.targetDate.year, goal.targetDate.month, goal.targetDate.day);
+    int remainingDays = target.difference(today).inDays;
     
     return GestureDetector(
       onTap: () {
@@ -379,7 +382,7 @@ class _GoalListScreenState extends State<GoalListScreen> {
                     const Icon(Icons.access_time_rounded, size: 14, color: Colors.black54),
                     const SizedBox(width: 4),
                     Text(
-                      remainingDays > 0 ? 'Còn $remainingDays ngày' : (remainingDays == 0 ? 'Hôm nay' : 'Quá hạn'),
+                      remainingDays >= 0 ? 'Còn ${remainingDays + 1} ngày' : 'Quá hạn',
                       style: TextStyle(color: remainingDays < 0 ? Colors.red : Colors.black54, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                   ],

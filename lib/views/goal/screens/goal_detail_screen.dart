@@ -88,11 +88,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
         final goal = currentGoalIndex != -1 ? goals[currentGoalIndex] : widget.goal;
         final color = Color(int.parse(goal.colorHex, radix: 16));
-        final remainingDays = goal.targetDate.difference(DateTime.now()).inDays;
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final target = DateTime(goal.targetDate.year, goal.targetDate.month, goal.targetDate.day);
+        final remainingDays = target.difference(today).inDays;
+        
+        final displayDays = remainingDays >= 0 ? remainingDays + 1 : remainingDays;
         
         double avgNeeded = 0;
-        if (remainingDays > 0 && goal.remainAmount > 0) {
-          avgNeeded = goal.remainAmount / remainingDays;
+        if (displayDays > 0 && goal.remainAmount > 0) {
+          avgNeeded = goal.remainAmount / displayDays;
         }
 
         return Scaffold(
@@ -218,7 +223,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                                   Expanded(
                                     child: _buildStatItem(
                                       'Thời gian', 
-                                      remainingDays > 0 ? '$remainingDays ngày' : (remainingDays == 0 ? 'Hôm nay' : 'Quá hạn'), 
+                                      remainingDays >= 0 ? 'Còn $displayDays ngày' : 'Quá hạn', 
                                       remainingDays < 0 ? Colors.red : Colors.black87
                                     )
                                   ),

@@ -277,7 +277,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    int remainingDays = _targetDate.difference(DateTime.now()).inDays;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(_targetDate.year, _targetDate.month, _targetDate.day);
+    int remainingDays = target.difference(today).inDays;
     
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -397,7 +400,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(color: _selectedColor.withAlpha(20), borderRadius: BorderRadius.circular(10)),
                               child: Text(
-                                remainingDays > 0 ? 'Còn $remainingDays ngày' : 'Quá hạn',
+                                remainingDays >= 0 ? 'Còn ${remainingDays + 1} ngày' : 'Quá hạn',
                                 style: TextStyle(color: _selectedColor, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             )
