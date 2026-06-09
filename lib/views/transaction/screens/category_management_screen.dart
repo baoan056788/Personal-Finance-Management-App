@@ -34,6 +34,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> wit
           children: [
             TextField(
               controller: nameController,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(labelText: 'Tên danh mục'),
             ),
           ],

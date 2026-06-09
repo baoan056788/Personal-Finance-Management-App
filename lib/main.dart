@@ -3,6 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart' as gsignin;
+
 import 'firebase_options.dart';
 import 'views/auth/screens/login_screen.dart';
 import 'views/home/home_view.dart';
@@ -14,6 +17,17 @@ void main() async {
   );
   await initializeDateFormatting('vi_VN', null);
 
+  await gsignin.GoogleSignIn.instance.initialize(
+    serverClientId: '1047440854342-pc7k3vq881ce48i97l8up5b6oup4st8e.apps.googleusercontent.com',
+  );
+
+  final prefs = await SharedPreferences.getInstance();
+  final rememberMe = prefs.getBool('remember_me') ?? true;
+
+  if (!rememberMe) {
+    await FirebaseAuth.instance.signOut();
+  }
+
   runApp(const MyApp());
 }
 
@@ -24,13 +38,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Tinora',
+      title: 'QLTC_N11',
       theme: ThemeData(
         useMaterial3: false,
         fontFamily: 'Roboto',
         scaffoldBackgroundColor: const Color(0xFFFFF7FF),
       ),
-      // Vietnamese localizations setup
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

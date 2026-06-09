@@ -68,6 +68,7 @@ class _RecurringTransactionsScreenState extends State<RecurringTransactionsScree
                 ],
               ),
               child: TextField(
+                textCapitalization: TextCapitalization.sentences,
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value.trim();

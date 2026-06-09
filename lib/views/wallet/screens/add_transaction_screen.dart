@@ -376,7 +376,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text('Ghi chú', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      TextField(controller: _noteController, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87), decoration: const InputDecoration(hintText: 'Nhập mô tả giao dịch', hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal), border: InputBorder.none, contentPadding: EdgeInsets.only(top: 8, bottom: 8), isDense: true)),
+                      TextField(controller: _noteController, textCapitalization: TextCapitalization.sentences, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87), decoration: const InputDecoration(hintText: 'Nhập mô tả giao dịch', hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal), border: InputBorder.none, contentPadding: EdgeInsets.only(top: 8, bottom: 8), isDense: true)),
                       const SizedBox(height: 100),
                     ],
                   ),

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart' as gsignin;
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'otp_screen.dart';
-import 'password_login_screen.dart';
-import 'create_password_screen.dart';
+import 'register_screen.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,137 +17,129 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
-
-  // Single loading lock — prevents any double-tap from firing a second request.
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _rememberMe = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMePreference();
+  }
+
+  Future<void> _loadRememberMePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('remember_me') ?? true;
+    });
+  }
+
+  Future<void> _saveRememberMePreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('remember_me', value);
+  }
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _processLogin() async {
-    // ── Guard: ignore if already processing ─────────────────────────────────
-    if (_isLoading) return;
-
-    // ── Dismiss keyboard before validation so it doesn't absorb tap events ──
+  Future<void> _loginEmail() async {
     FocusScope.of(context).unfocus();
-
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
-    final String localDigits = _phoneController.text.trim();
-    final String fullPhoneNumber = '+84$localDigits';
-    final String syntheticEmail = '$localDigits@tinora.local';
+    
+    String email = _emailController.text.trim().toLowerCase();
+    String password = _passwordController.text;
 
     try {
-      // ── Source of truth: Firestore — NOT Firebase Auth ───────────────────
-      final QuerySnapshot userDocs = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phoneNumber', isEqualTo: fullPhoneNumber)
-          .limit(1)
-          .get();
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      await _saveRememberMePreference(_rememberMe);
 
-      if (!mounted) return;
-
-      final bool firestoreDocExists = userDocs.docs.isNotEmpty;
-      final bool passwordCreated = firestoreDocExists &&
-          (userDocs.docs.first.data() as Map<String, dynamic>)['passwordCreated'] == true;
-
-      if (firestoreDocExists && passwordCreated) {
-        // ── CASE: existing user → Password Login ────────────────────────────
-        // Reset loading BEFORE push so the button is clean if user pops back.
-        setState(() => _isLoading = false);
-        if (!mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PasswordLoginScreen(
-              phoneNumber: fullPhoneNumber,
-              syntheticEmail: syntheticEmail,
-            ),
-          ),
-        );
-      } else {
-        // ── CASE: new / incomplete user → OTP ──────────────────────────────
-        // Keep _isLoading = true until codeSent fires and we navigate.
-        // _sendOtp callbacks are responsible for resetting loading on error.
-        if (FirebaseAuth.instance.currentUser != null) {
-          await FirebaseAuth.instance.signOut();
-        }
-        if (!mounted) return;
-        await _sendOtp(fullPhoneNumber);
-        // Do NOT reset _isLoading here — codeSent/verificationFailed manage it.
+      // Routing to HomeView is handled by AuthWrapper in main.dart
+    } on FirebaseAuthException catch (e) {
+      String message = 'Đã xảy ra lỗi.';
+      if (e.code == 'user-not-found') {
+        message = 'Tài khoản không tồn tại.';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Email hoặc mật khẩu không chính xác.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Không thể kết nối mạng.';
+      } else if (e.code == 'too-many-requests') {
+        message = 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.';
       }
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã xảy ra lỗi: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã xảy ra lỗi: $e'), backgroundColor: Colors.redAccent));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _sendOtp(String fullPhoneNumber) async {
+  Future<void> _loginGoogle() async {
+    FocusScope.of(context).unfocus();
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
+
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: fullPhoneNumber,
-        // Android auto-retrieval: skip OTP screen, go straight to password creation
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const CreatePasswordScreen(isResetPassword: false),
-            ),
-            (route) => route.isFirst,
-          );
-        },
-        // OTP send failed — reset loading so user can retry
-        verificationFailed: (FirebaseAuthException e) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Xác thực thất bại: ${e.message}'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        },
-        // OTP sent — navigate to OTP screen, reset loading there
-        codeSent: (String verificationId, int? resendToken) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OtpScreen(
-                verificationId: verificationId,
-                phoneNumber: fullPhoneNumber,
-                isResetPassword: false,
-              ),
-            ),
-          );
-        },
-        codeAutoRetrievalTimeout: (_) {},
+      final gsignin.GoogleSignInAccount? googleUser = await gsignin.GoogleSignIn.instance.authenticate();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final gsignin.GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
       );
+
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final docSnapshot = await docRef.get();
+
+        if (!docSnapshot.exists) {
+          await docRef.set({
+            'fullName': user.displayName ?? 'Người dùng',
+            'email': user.email,
+            'createdAt': FieldValue.serverTimestamp(),
+            'onboardingCompleted': false,
+            'loginProvider': 'google',
+            'avatarUrl': user.photoURL,
+          }, SetOptions(merge: true));
+        }
+      }
+
+      await _saveRememberMePreference(_rememberMe);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Đăng nhập Google thất bại.';
+      if (e.code == 'network-request-failed') {
+        message = 'Không thể kết nối mạng.';
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã xảy ra lỗi gửi OTP: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi đăng nhập Google: $e'), backgroundColor: Colors.redAccent));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -157,23 +150,11 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: _isLoading
-              ? null
-              : () {
-                  if (Navigator.canPop(context)) Navigator.pop(context);
-                },
-        ),
-        title: const Text(
-          'Nhập SĐT',
-          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        automaticallyImplyLeading: false, // Ensure no back button on base login screen
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -181,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 20),
                 const Text(
-                  'Số điện thoại\ncủa bạn',
+                  'Chào mừng bạn\nđến với QLTC_N11',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -191,171 +172,129 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Vui lòng nhập số điện thoại của bạn\nđể tiếp tục trải nghiệm Tinora.',
+                  'Vui lòng đăng nhập để tiếp tục trải nghiệm.',
                   style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
                 ),
                 const SizedBox(height: 40),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFB02A76), width: 1.5),
+
+                // Email Field
+                CustomTextField(
+                  label: 'Email',
+                  hint: 'Nhập email',
+                  controller: _emailController,
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  maxLength: 100,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Vui lòng nhập email';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Password Field
+                CustomTextField(
+                  label: 'Mật khẩu',
+                  hint: 'Nhập mật khẩu',
+                  controller: _passwordController,
+                  prefixIcon: Icons.lock_outline,
+                  isPassword: _obscurePassword,
+                  maxLength: 32,
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('🇻🇳', style: TextStyle(fontSize: 20)),
-                            SizedBox(width: 8),
-                            Text(
-                              '+84',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(width: 1, height: 24, color: Colors.grey.shade300),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _processLogin(),
-                          decoration: const InputDecoration(
-                            hintText: 'Nhập 9 chữ số (VD: 377648013)',
-                            hintStyle: TextStyle(color: Colors.black26, fontSize: 13),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Vui lòng nhập số điện thoại';
-                            }
-                            final String p = value.trim();
-                            if (!RegExp(r'^[0-9]+$').hasMatch(p)) {
-                              return 'Số điện thoại chỉ được chứa chữ số';
-                            }
-                            if (p.length != 9) {
-                              return 'Phải nhập đúng 9 chữ số (bỏ số 0 đầu)';
-                            }
-                            if (!RegExp(r'^[35789]').hasMatch(p)) {
-                              return 'Không hợp lệ (bắt đầu bằng 3, 5, 7, 8, 9)';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 8),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    'Ví dụ: số 0377648013 → nhập 377648013',
-                    style: TextStyle(fontSize: 12, color: Colors.black38),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9F9F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFDEBEE),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.security, color: Color(0xFFB02A76), size: 16),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Bảo mật tuyệt đối',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Thông tin của bạn được mã hóa và bảo\nvệ theo tiêu chuẩn quốc tế PCI DSS.',
-                              style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 48),
-                ElevatedButton(
-                  // Disabled (null) while loading — prevents any double-tap
-                  onPressed: _isLoading ? null : _processLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB02A76),
-                    disabledBackgroundColor: const Color(0xFFB02A76).withValues(alpha: 0.6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Tiếp tục',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, size: 20),
-                          ],
-                        ),
+
+                // Remember Me
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: _isLoading ? null : (value) {
+                        setState(() {
+                          _rememberMe = value ?? true;
+                        });
+                      },
+                      activeColor: const Color(0xFFB02A76),
+                    ),
+                    const Text('Ghi nhớ đăng nhập', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                  ],
                 ),
                 const SizedBox(height: 24),
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
+
+                // Login Button
+                CustomButton(
+                  text: 'ĐĂNG NHẬP',
+                  onPressed: _isLoading ? () {} : _loginEmail,
+                  isLoading: _isLoading,
+                ),
+                const SizedBox(height: 16),
+
+                // Divider
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('HOẶC', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Google Login Button
+                OutlinedButton(
+                  onPressed: _isLoading ? null : _loginGoogle,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    side: const BorderSide(color: Colors.grey, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      TextSpan(text: 'Bằng việc tiếp tục, bạn đồng ý với '),
-                      TextSpan(
-                        text: 'Điều khoản dịch vụ',
-                        style: TextStyle(
-                            color: Color(0xFFB02A76), fontWeight: FontWeight.bold),
+                      // Google Icon
+                      Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.g_mobiledata, size: 32, color: Colors.blue),
                       ),
-                      TextSpan(text: ' &\n'),
-                      TextSpan(
-                        text: 'Chính sách bảo mật',
-                        style: TextStyle(
-                            color: Color(0xFFB02A76), fontWeight: FontWeight.bold),
+                      const SizedBox(width: 12),
+                      const Flexible(
+                        child: Text(
+                          'Đăng nhập bằng Google',
+                          style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      TextSpan(text: ' của chúng tôi.'),
                     ],
                   ),
+                ),
+                const SizedBox(height: 32),
+
+                // Register Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Chưa có tài khoản? ', style: TextStyle(color: Colors.black54)),
+                    TextButton(
+                      onPressed: _isLoading ? null : () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                      },
+                      child: const Text('Đăng ký ngay', style: TextStyle(color: Color(0xFFB02A76), fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),

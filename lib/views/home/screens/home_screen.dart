@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _refreshKey = UniqueKey();
     });
-    // Wait a bit to show the animation
     await Future.delayed(const Duration(milliseconds: 500));
   }
 

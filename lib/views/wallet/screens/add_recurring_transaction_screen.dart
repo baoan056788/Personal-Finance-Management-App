@@ -606,6 +606,7 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                           const Text('Ghi chú / Tên hóa đơn', style: TextStyle(color: Colors.grey, fontSize: 12)),
                           TextField(
                             controller: _noteController,
+                            textCapitalization: TextCapitalization.sentences,
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
                             decoration: const InputDecoration(
                               hintText: 'Nhập tên hóa đơn hoặc mô tả',

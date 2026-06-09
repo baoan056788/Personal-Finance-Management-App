@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../auth/screens/login_screen.dart';
 import '../../auth/screens/create_profile_screen.dart';
-import '../../auth/screens/create_password_screen.dart';
 import '../../budget/screens/budget_list_screen.dart';
 import '../../goal/screens/goal_list_screen.dart';
 
@@ -35,13 +33,13 @@ class UtilityScreen extends StatelessWidget {
     );
 
     if (confirmed != true) return;
+    
+    // AuthWrapper in main.dart listens to authStateChanges and will handle routing
+    // automatically when signOut is called. We just need to pop any pushed routes.
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     await FirebaseAuth.instance.signOut();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
   }
 
   void _showComingSoon(BuildContext context, String feature) {
@@ -212,12 +210,7 @@ class UtilityScreen extends StatelessWidget {
           _buildSettingsTile(
             icon: Icons.lock_outline,
             title: 'Bảo mật & Mật khẩu',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CreatePasswordScreen(isResetPassword: true),
-              ),
-            ),
+            onTap: () => _showComingSoon(context, 'Thay đổi mật khẩu'),
           ),
           _buildSettingsTile(
             icon: Icons.notifications_none,

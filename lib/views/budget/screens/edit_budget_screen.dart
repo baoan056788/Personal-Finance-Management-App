@@ -339,6 +339,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                     ),
                     child: TextField(
                       controller: _nameController,
+                      textCapitalization: TextCapitalization.sentences,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                       decoration: const InputDecoration(
                         hintText: 'VD: Chi tiêu tháng này',
@@ -493,6 +494,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                     ),
                     child: TextField(
                       controller: _noteController,
+                      textCapitalization: TextCapitalization.sentences,
                       maxLines: 3,
                       minLines: 1,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),

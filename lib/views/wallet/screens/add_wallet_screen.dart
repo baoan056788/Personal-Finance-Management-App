@@ -111,6 +111,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             const SizedBox(height: 24),
             TextField(
               controller: _nameController,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'Tên nguồn tiền (VD: Thẻ VCB, Tiền mặt)',
                 border: OutlineInputBorder(),

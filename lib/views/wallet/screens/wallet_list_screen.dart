@@ -30,6 +30,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
           title: const Text('Đổi tên ví'),
           content: TextField(
             controller: nameController,
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(labelText: 'Tên ví'),
             autofocus: true,
           ),

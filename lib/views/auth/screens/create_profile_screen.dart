@@ -147,6 +147,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             readOnly: readOnly,
             onTap: onTap,
             keyboardType: keyboardType,
+            textCapitalization: keyboardType == TextInputType.emailAddress || keyboardType == TextInputType.phone || keyboardType == TextInputType.number ? TextCapitalization.none : TextCapitalization.words,
             style: const TextStyle(fontSize: 14, color: Colors.black87),
             decoration: InputDecoration(
               hintText: hint,
@@ -318,7 +319,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                       const SizedBox(height: 20),
                       _buildTextField(
                         label: 'EMAIL',
-                        hint: 'example@tinora.vn',
+                        hint: 'example@gmail.com',
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {

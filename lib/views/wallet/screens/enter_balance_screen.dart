@@ -5,7 +5,6 @@ import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_text_field.dart';
-import '../../home/home_view.dart';
 
 class EnterBalanceScreen extends StatefulWidget {
   final String name;
@@ -71,12 +70,8 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
 
       if (!mounted) return;
       
-      // Use pushAndRemoveUntil to clear the onboarding stack cleanly
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeView()),
-        (route) => false,
-      );
+      // Pop the onboarding stack cleanly to return to root
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -12,7 +12,28 @@
           "package_name": "com.example.personal_finance_management_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1047440854342-n49aboohnihklc0u0mdi23l4cvop21qi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.personal_finance_management_app",
+            "certificate_hash": "de4a870b73a50fc17cdc1a829b043133cd5da6cf"
+          }
+        },
+        {
+          "client_id": "1047440854342-rug43nf8fnjiveiqrd327og35h8lmunh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.personal_finance_management_app",
+            "certificate_hash": "16f2656e2a90a5b92e4a62c797bc6a46d00be04c"
+          }
+        },
+        {
+          "client_id": "1047440854342-pc7k3vq881ce48i97l8up5b6oup4st8e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBEWnAgHOCuLa97kL1hwjLG_0WMY67HWig"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1047440854342-pc7k3vq881ce48i97l8up5b6oup4st8e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1047440854342-9e5ih35qg0527pi9cplo8ldvd1mpsjfd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.personalFinanceManagementApp"
+              }
+            }
+          ]
         }
       }
     }

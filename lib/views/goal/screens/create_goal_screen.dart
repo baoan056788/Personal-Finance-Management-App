@@ -255,6 +255,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        textCapitalization: keyboardType == TextInputType.number ? TextCapitalization.none : TextCapitalization.sentences,
         validator: validator,
         inputFormatters: inputFormatters,
         onChanged: onChanged,
