@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'enter_balance_screen.dart';
-import '../../home/home_view.dart';
 
 class CreateWalletScreen extends StatelessWidget {
   const CreateWalletScreen({super.key});
@@ -24,11 +23,7 @@ class CreateWalletScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.home_outlined, color: Color(0xFFB02A76)),
             onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const HomeView()),
-                (route) => false,
-              );
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
           ),
         ],

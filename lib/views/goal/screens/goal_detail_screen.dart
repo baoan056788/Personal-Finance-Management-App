@@ -533,6 +533,7 @@ class _AddContributionFormState extends State<_AddContributionForm> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: TextFormField(
               controller: _noteController,
+              textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: 'Ghi chú',
                 prefixIcon: const Icon(Icons.edit_note_rounded),

@@ -40,10 +40,8 @@ class _ReportScreenState extends State<ReportScreen> {
     if (mounted) setState(() => _categories = cats);
   }
 
-  // ─── Find category by ID or Name (Robust) ──────────────────────────────────
   CategoryModel? _findCategory(String? id, String? name) {
     String? targetId = id;
-    // Heuristic: if name looks like a Firebase ID, treat it as the targetId
     if ((targetId == null || targetId.isEmpty) && name != null && !name.contains(' ') && name.length > 15) {
       targetId = name;
     }
@@ -75,7 +73,6 @@ class _ReportScreenState extends State<ReportScreen> {
   String _getCategoryDisplayName(String? id, String name) {
     final cat = _findCategory(id, name);
     if (cat != null) return cat.name;
-    // If still an ID, return "Khác" or similar
     if (!name.contains(' ') && name.length > 15) return "Khác";
     return name;
   }

@@ -309,6 +309,7 @@ class _CreateCategoryScreenState extends State<CreateCategoryScreen> {
                   // Input tên danh mục
                   TextField(
                     controller: _nameController,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: 'Tên danh mục*',
                       border: OutlineInputBorder(

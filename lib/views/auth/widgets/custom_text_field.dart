@@ -8,6 +8,9 @@ class CustomTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
   final IconData prefixIcon;
+  final int? maxLength;
+  final Widget? suffixIcon;
+  final TextCapitalization textCapitalization;
 
   const CustomTextField({
     super.key,
@@ -18,6 +21,9 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.validator,
     required this.prefixIcon,
+    this.maxLength,
+    this.suffixIcon,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -28,11 +34,14 @@ class CustomTextField extends StatelessWidget {
         controller: controller,
         obscureText: isPassword,
         keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
         validator: validator,
+        maxLength: maxLength,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
           prefixIcon: Icon(prefixIcon, color: const Color(0xFFF06292)),
+          suffixIcon: suffixIcon,
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

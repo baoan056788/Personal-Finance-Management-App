@@ -329,6 +329,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: _nameController,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: 'Tên danh mục*',
                       border: OutlineInputBorder(

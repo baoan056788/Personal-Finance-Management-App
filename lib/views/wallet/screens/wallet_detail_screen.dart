@@ -41,6 +41,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           title: const Text('Sửa tên ví'),
           content: TextField(
             controller: nameController,
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               labelText: 'Tên ví mới',
               border: OutlineInputBorder(),
