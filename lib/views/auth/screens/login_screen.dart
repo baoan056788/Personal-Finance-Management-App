@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = true;
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    
+
     String email = _emailController.text.trim().toLowerCase();
     String password = _passwordController.text;
 
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
       );
-      
+
       await _saveRememberMePreference(_rememberMe);
 
       // Routing to HomeView is handled by AuthWrapper in main.dart
@@ -79,40 +79,90 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (e.code == 'too-many-requests') {
         message = 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.';
       }
-      
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã xảy ra lỗi: $e'), backgroundColor: Colors.redAccent));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xảy ra lỗi: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Vui lòng nhập email hợp lệ trước khi khôi phục mật khẩu.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã gửi email khôi phục mật khẩu đến $email.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Không thể gửi email khôi phục mật khẩu.';
+      if (e.code == 'user-not-found') {
+        message = 'Email này chưa được đăng ký.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Email không hợp lệ.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Không thể kết nối mạng.';
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
     }
   }
 
   Future<void> _loginGoogle() async {
     FocusScope.of(context).unfocus();
     if (_isLoading) return;
-    
+
     setState(() => _isLoading = true);
 
     try {
-      final gsignin.GoogleSignInAccount? googleUser = await gsignin.GoogleSignIn.instance.authenticate();
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      final gsignin.GoogleSignInAccount googleUser = await gsignin
+          .GoogleSignIn
+          .instance
+          .authenticate();
 
-      final gsignin.GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final gsignin.GoogleSignInAuthentication googleAuth =
+          googleUser.authentication;
       final OAuthCredential credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
       final user = userCredential.user;
 
       if (user != null) {
-        final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final docRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid);
         final docSnapshot = await docRef.get();
 
         if (!docSnapshot.exists) {
@@ -134,10 +184,17 @@ class _LoginScreenState extends State<LoginScreen> {
         message = 'Không thể kết nối mạng.';
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi đăng nhập Google: $e'), backgroundColor: Colors.redAccent));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi đăng nhập Google: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -150,7 +207,8 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // Ensure no back button on base login screen
+        automaticallyImplyLeading:
+            false, // Ensure no back button on base login screen
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -173,7 +231,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Vui lòng đăng nhập để tiếp tục trải nghiệm.',
-                  style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 40),
 
@@ -186,7 +248,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   maxLength: 100,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Vui lòng nhập email';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
                     return null;
                   },
                 ),
@@ -201,13 +265,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   isPassword: _obscurePassword,
                   maxLength: 32,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu';
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu';
+                    }
                     return null;
                   },
                 ),
@@ -218,14 +289,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Checkbox(
                       value: _rememberMe,
-                      onChanged: _isLoading ? null : (value) {
-                        setState(() {
-                          _rememberMe = value ?? true;
-                        });
-                      },
+                      onChanged: _isLoading
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _rememberMe = value ?? true;
+                              });
+                            },
                       activeColor: const Color(0xFFB02A76),
                     ),
-                    const Text('Ghi nhớ đăng nhập', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    const Text(
+                      'Ghi nhớ đăng nhập',
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _isLoading ? null : _resetPassword,
+                      child: const Text(
+                        'Quên mật khẩu?',
+                        style: TextStyle(
+                          color: Color(0xFFB02A76),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -244,7 +331,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(child: Divider(color: Colors.grey)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('HOẶC', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'HOẶC',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     Expanded(child: Divider(color: Colors.grey)),
                   ],
@@ -256,7 +350,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : _loginGoogle,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                     side: const BorderSide(color: Colors.grey, width: 1),
                   ),
                   child: Row(
@@ -268,13 +364,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
                         height: 24,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.g_mobiledata, size: 32, color: Colors.blue),
+                            const Icon(
+                              Icons.g_mobiledata,
+                              size: 32,
+                              color: Colors.blue,
+                            ),
                       ),
                       const SizedBox(width: 12),
                       const Flexible(
                         child: Text(
                           'Đăng nhập bằng Google',
-                          style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w600,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -287,12 +391,28 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Chưa có tài khoản? ', style: TextStyle(color: Colors.black54)),
+                    const Text(
+                      'Chưa có tài khoản? ',
+                      style: TextStyle(color: Colors.black54),
+                    ),
                     TextButton(
-                      onPressed: _isLoading ? null : () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-                      },
-                      child: const Text('Đăng ký ngay', style: TextStyle(color: Color(0xFFB02A76), fontWeight: FontWeight.bold)),
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text(
+                        'Đăng ký ngay',
+                        style: TextStyle(
+                          color: Color(0xFFB02A76),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
