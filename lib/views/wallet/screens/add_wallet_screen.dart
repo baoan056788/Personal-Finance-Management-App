@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 class AddWalletScreen extends StatefulWidget {
   const AddWalletScreen({super.key});
@@ -17,21 +18,30 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   final _balanceController = TextEditingController();
 
   String _selectedType = 'Tiền mặt';
-  final List<String> _types = ['Tiền mặt', 'Ngân hàng', 'Ví điện tử', 'Thẻ tín dụng'];
+  final List<String> _types = [
+    'Tiền mặt',
+    'Ngân hàng',
+    'Ví điện tử',
+    'Thẻ tín dụng',
+  ];
 
   bool _isLoading = false;
 
   Future<void> _saveWallet() async {
     final name = _nameController.text.trim();
-    final balanceText = _balanceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final balance = parseCurrencyInput(_balanceController.text);
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập tên nguồn tiền')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập tên nguồn tiền')),
+      );
       return;
     }
 
-    if (balanceText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập số dư ban đầu')));
+    if (balance == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập số dư ban đầu')),
+      );
       return;
     }
 
@@ -40,12 +50,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final amount = double.parse(balanceText);
-        
         final newWallet = WalletModel(
           id: FirebaseFirestore.instance.collection('dummy').doc().id,
           name: name,
-          balance: amount,
+          balance: balance,
           type: _selectedType,
           createdAt: DateTime.now(),
         );
@@ -57,7 +65,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
       if (mounted) {
@@ -71,7 +81,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Thêm nguồn tiền', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Thêm nguồn tiền',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -81,7 +94,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Loại nguồn tiền', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Loại nguồn tiền',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -91,17 +107,30 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                 return GestureDetector(
                   onTap: () => setState(() => _selectedType = type),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFFFF0F6) : Colors.grey.shade100,
-                      border: Border.all(color: isSelected ? const Color(0xFFB2006A) : Colors.transparent),
+                      color: isSelected
+                          ? const Color(0xFFFFF0F6)
+                          : Colors.grey.shade100,
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFB2006A)
+                            : Colors.transparent,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       type,
                       style: TextStyle(
-                        color: isSelected ? const Color(0xFFB2006A) : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? const Color(0xFFB2006A)
+                            : Colors.black87,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -121,6 +150,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             TextField(
               controller: _balanceController,
               keyboardType: TextInputType.number,
+              inputFormatters: [CurrencyInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Số dư ban đầu (đ)',
                 border: OutlineInputBorder(),
@@ -134,13 +164,21 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                 onPressed: _isLoading ? null : _saveWallet,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFB2006A),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Lưu nguồn tiền', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        'Lưu nguồn tiền',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
-            )
+            ),
           ],
         ),
       ),

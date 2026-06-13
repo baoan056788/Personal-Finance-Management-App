@@ -14,19 +14,22 @@ import '../../../controllers/category_controller.dart';
 import '../../../controllers/recurring_transaction_controller.dart';
 import '../services/wallet_service.dart';
 import '../widgets/frequency_bottom_sheet.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 class AddRecurringTransactionScreen extends StatefulWidget {
   final RecurringTransactionModel? initialTransaction; // NEW: support edit mode
   const AddRecurringTransactionScreen({super.key, this.initialTransaction});
 
   @override
-  State<AddRecurringTransactionScreen> createState() => _AddRecurringTransactionScreenState();
+  State<AddRecurringTransactionScreen> createState() =>
+      _AddRecurringTransactionScreenState();
 }
 
-class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionScreen> {
+class _AddRecurringTransactionScreenState
+    extends State<AddRecurringTransactionScreen> {
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
-  
+
   CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   String _frequency = 'Hằng tháng'; // Default for recurring
@@ -38,7 +41,8 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
   final ImagePicker _picker = ImagePicker();
 
   final CategoryController _categoryController = CategoryController();
-  final RecurringTransactionController _recurringController = RecurringTransactionController();
+  final RecurringTransactionController _recurringController =
+      RecurringTransactionController();
   final WalletService _walletService = WalletService();
 
   List<WalletModel> _wallets = [];
@@ -62,19 +66,19 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
   void _initEditMode() async {
     if (_isEditing) {
       final tx = widget.initialTransaction!;
-      _amountController.text = tx.amount.toInt().toString();
+      _amountController.text = formatCurrencyInput(tx.amount);
       _noteController.text = tx.name; // In recurring, name is the note/purpose
       _frequency = tx.frequency;
       _selectedDate = tx.nextDueDate;
       _endDate = tx.endDate;
       _remoteImageUrl = tx.imageUrl;
-      
+
       // Load and select category
       final cats = await _categoryController.getAllCategories();
       try {
         _selectedCategory = cats.firstWhere((c) => c.id == tx.categoryId);
       } catch (_) {}
-      
+
       if (mounted) setState(() {});
     }
   }
@@ -85,14 +89,18 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
         setState(() {
           _wallets = wallets;
           if (_isEditing && _selectedWallet == null) {
-             try {
-               _selectedWallet = _wallets.firstWhere((w) => w.id == widget.initialTransaction!.walletId);
-             } catch (_) {}
+            try {
+              _selectedWallet = _wallets.firstWhere(
+                (w) => w.id == widget.initialTransaction!.walletId,
+              );
+            } catch (_) {}
           }
-          
+
           if (_selectedWallet != null) {
             try {
-              _selectedWallet = _wallets.firstWhere((w) => w.id == _selectedWallet!.id);
+              _selectedWallet = _wallets.firstWhere(
+                (w) => w.id == _selectedWallet!.id,
+              );
             } catch (_) {
               _selectedWallet = _wallets.isNotEmpty ? _wallets.first : null;
             }
@@ -136,7 +144,9 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: FrequencyBottomSheet(
           initialFrequency: _frequency,
           initialEndDate: _endDate,
@@ -153,7 +163,10 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     if (image != null) {
       setState(() {
         _selectedImage = File(image.path);
@@ -163,25 +176,32 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
   }
 
   Future<void> _saveRecurringTransaction() async {
-    final amountText = _amountController.text.replaceAll(',', '').replaceAll('.', '');
-    if (amountText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')));
+    final amount = parseCurrencyInput(_amountController.text);
+    if (amount == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')),
+      );
       return;
     }
-    
-    final amount = double.tryParse(amountText);
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0')));
+
+    if (amount <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0')));
       return;
     }
 
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn danh mục')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn danh mục')));
       return;
     }
 
     if (_selectedWallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn nguồn tiền')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn nguồn tiền')));
       return;
     }
 
@@ -199,14 +219,19 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
               .child('recurring_transactions')
               .child(user.uid)
               .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-              
-          final uploadTask = storageRef.putData(await _selectedImage!.readAsBytes());
+
+          final uploadTask = storageRef.putData(
+            await _selectedImage!.readAsBytes(),
+          );
           final snapshot = await uploadTask.whenComplete(() => null);
           imageUrl = await snapshot.ref.getDownloadURL();
         } catch (e) {
           final directory = await getApplicationDocumentsDirectory();
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
-          final savedImage = await _selectedImage!.copy('${directory.path}/$fileName');
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
+          final savedImage = await _selectedImage!.copy(
+            '${directory.path}/$fileName',
+          );
           imageUrl = savedImage.path;
         }
       }
@@ -214,14 +239,18 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
       final transaction = RecurringTransactionModel(
         id: _isEditing ? widget.initialTransaction!.id : '',
         userId: user.uid,
-        name: _noteController.text.trim().isEmpty ? _selectedCategory!.name : _noteController.text.trim(),
+        name: _noteController.text.trim().isEmpty
+            ? _selectedCategory!.name
+            : _noteController.text.trim(),
         amount: amount,
         type: _isEditing ? widget.initialTransaction!.type : 'expense',
         categoryId: _selectedCategory!.id,
         walletId: _selectedWallet!.id,
         frequency: _frequency,
         nextDueDate: _selectedDate,
-        createdAt: _isEditing ? widget.initialTransaction!.createdAt : DateTime.now(),
+        createdAt: _isEditing
+            ? widget.initialTransaction!.createdAt
+            : DateTime.now(),
         endDate: _endDate,
         imageUrl: imageUrl,
       );
@@ -235,7 +264,14 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
       if (!mounted) return;
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isEditing ? 'Đã cập nhật thiết lập định kỳ!' : 'Đã thêm thiết lập định kỳ thành công!'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'Đã cập nhật thiết lập định kỳ!'
+                : 'Đã thêm thiết lập định kỳ thành công!',
+          ),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (mounted) {
@@ -278,28 +314,46 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
                           padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.black87),
+                          child: Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 20,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        _isEditing ? 'Sửa Thiết Lập Định Kỳ' : 'Thêm Giao Dịch Định Kỳ',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        _isEditing
+                            ? 'Sửa Thiết Lập Định Kỳ'
+                            : 'Thêm Giao Dịch Định Kỳ',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                     ],
                   ),
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.help_outline, color: Colors.black54),
+                        icon: const Icon(
+                          Icons.help_outline,
+                          color: Colors.black54,
+                        ),
                         onPressed: () {},
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
                       const SizedBox(width: 16),
                       IconButton(
-                        icon: const Icon(Icons.home_outlined, color: Colors.black54),
-                        onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                        icon: const Icon(
+                          Icons.home_outlined,
+                          color: Colors.black54,
+                        ),
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -317,7 +371,10 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Image Upload
-                    const Text('Hình ảnh đính kèm', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    const Text(
+                      'Hình ảnh đính kèm',
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -329,9 +386,15 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade200),
-                              image: _selectedImage != null 
-                                ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover)
-                                : DecorationImage(image: NetworkImage(_remoteImageUrl!), fit: BoxFit.cover),
+                              image: _selectedImage != null
+                                  ? DecorationImage(
+                                      image: FileImage(_selectedImage!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : DecorationImage(
+                                      image: NetworkImage(_remoteImageUrl!),
+                                      fit: BoxFit.cover,
+                                    ),
                             ),
                             child: Stack(
                               children: [
@@ -339,14 +402,21 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                   top: -4,
                                   right: -4,
                                   child: GestureDetector(
-                                    onTap: () => setState(() { _selectedImage = null; _remoteImageUrl = null; }),
+                                    onTap: () => setState(() {
+                                      _selectedImage = null;
+                                      _remoteImageUrl = null;
+                                    }),
                                     child: Container(
                                       padding: const EdgeInsets.all(2),
                                       decoration: const BoxDecoration(
                                         color: Colors.black87,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -359,15 +429,28 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid, width: 2),
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                style: BorderStyle.solid,
+                                width: 2,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add_photo_alternate_outlined, color: Colors.grey),
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: Colors.grey,
+                                ),
                                 SizedBox(height: 4),
-                                Text('Thêm ảnh', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                Text(
+                                  'Thêm ảnh',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -383,19 +466,33 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade100),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Số tiền *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          const Text(
+                            'Số tiền *',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
                           Row(
                             children: [
                               Expanded(
                                 child: TextField(
                                   controller: _amountController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [CurrencyInputFormatter()],
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
                                   decoration: const InputDecoration(
                                     hintText: '0',
                                     border: InputBorder.none,
@@ -404,7 +501,14 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                   ),
                                 ),
                               ),
-                              const Text('đ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              const Text(
+                                'đ',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -419,21 +523,42 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade100),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Danh mục *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          const Text(
+                            'Danh mục *',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
                           const SizedBox(height: 12),
                           StreamBuilder<List<CategoryModel>>(
-                            stream: _categoryController.getCategories(_isEditing ? widget.initialTransaction!.type : 'expense'),
+                            stream: _categoryController.getCategories(
+                              _isEditing
+                                  ? widget.initialTransaction!.type
+                                  : 'expense',
+                            ),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Center(child: CircularProgressIndicator());
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
                               }
                               final categories = snapshot.data ?? [];
-                              if (categories.isEmpty) return const Text('Chưa có danh mục nào.', style: TextStyle(color: Colors.grey));
+                              if (categories.isEmpty) {
+                                return const Text(
+                                  'Chưa có danh mục nào.',
+                                  style: TextStyle(color: Colors.grey),
+                                );
+                              }
 
                               return SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
@@ -441,11 +566,17 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: categories.map((cat) {
-                                    final isSelected = _selectedCategory?.id == cat.id;
-                                    final catIcon = IconData(int.parse(cat.iconCode, radix: 16), fontFamily: 'MaterialIcons');
+                                    final isSelected =
+                                        _selectedCategory?.id == cat.id;
+                                    final catIcon = IconData(
+                                      int.parse(cat.iconCode, radix: 16),
+                                      fontFamily: 'MaterialIcons',
+                                    );
 
                                     return GestureDetector(
-                                      onTap: () => setState(() => _selectedCategory = cat),
+                                      onTap: () => setState(
+                                        () => _selectedCategory = cat,
+                                      ),
                                       child: Container(
                                         width: 72,
                                         margin: const EdgeInsets.only(right: 8),
@@ -455,14 +586,25 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                               width: 48,
                                               height: 48,
                                               decoration: BoxDecoration(
-                                                color: isSelected ? Colors.pink.shade50 : Colors.grey.shade50,
-                                                borderRadius: BorderRadius.circular(12),
+                                                color: isSelected
+                                                    ? Colors.pink.shade50
+                                                    : Colors.grey.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                                 border: Border.all(
-                                                  color: isSelected ? momoPink : Colors.grey.shade200,
+                                                  color: isSelected
+                                                      ? momoPink
+                                                      : Colors.grey.shade200,
                                                   width: isSelected ? 2 : 1,
                                                 ),
                                               ),
-                                              child: Icon(catIcon, color: isSelected ? momoPink : Colors.grey.shade400, size: 24),
+                                              child: Icon(
+                                                catIcon,
+                                                color: isSelected
+                                                    ? momoPink
+                                                    : Colors.grey.shade400,
+                                                size: 24,
+                                              ),
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
@@ -471,8 +613,12 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                               maxLines: 2,
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                                color: isSelected ? momoPink : Colors.grey.shade600,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: isSelected
+                                                    ? momoPink
+                                                    : Colors.grey.shade600,
                                               ),
                                             ),
                                           ],
@@ -482,7 +628,7 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                   }).toList(),
                                 ),
                               );
-                            }
+                            },
                           ),
                         ],
                       ),
@@ -498,7 +644,13 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade100),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -506,15 +658,32 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Ngày bắt đầu / Kỳ tiếp theo *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const Text(
+                                  'Ngày bắt đầu / Kỳ tiếp theo *',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(_selectedDate),
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                                  DateFormat(
+                                    'EEEE, dd/MM/yyyy',
+                                    'vi_VN',
+                                  ).format(_selectedDate),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ],
                             ),
-                            const Icon(Icons.calendar_today, size: 20, color: Colors.grey),
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
                           ],
                         ),
                       ),
@@ -530,7 +699,13 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade100),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -538,12 +713,29 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Tần suất lặp lại', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const Text(
+                                  'Tần suất lặp lại',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(_frequency, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                                Text(
+                                  _frequency,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
                               ],
                             ),
-                            const Icon(Icons.autorenew, size: 20, color: Colors.grey),
+                            const Icon(
+                              Icons.autorenew,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
                           ],
                         ),
                       ),
@@ -557,7 +749,13 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade100),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -566,10 +764,19 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Nguồn tiền *', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                const Text(
+                                  'Nguồn tiền *',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 if (_wallets.isEmpty)
-                                  const Text('Đang tải...', style: TextStyle(fontSize: 14))
+                                  const Text(
+                                    'Đang tải...',
+                                    style: TextStyle(fontSize: 14),
+                                  )
                                 else
                                   DropdownButtonHideUnderline(
                                     child: DropdownButton<WalletModel>(
@@ -577,15 +784,31 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                                       isDense: true,
                                       isExpanded: true,
                                       icon: const SizedBox.shrink(),
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
-                                      items: _wallets.map((w) => DropdownMenuItem(value: w, child: Text(w.name))).toList(),
-                                      onChanged: (val) => setState(() => _selectedWallet = val),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
+                                      items: _wallets
+                                          .map(
+                                            (w) => DropdownMenuItem(
+                                              value: w,
+                                              child: Text(w.name),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (val) =>
+                                          setState(() => _selectedWallet = val),
                                     ),
                                   ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 20,
+                            color: Colors.grey,
+                          ),
                         ],
                       ),
                     ),
@@ -598,19 +821,35 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade100),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, 1))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Ghi chú / Tên hóa đơn', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          const Text(
+                            'Ghi chú / Tên hóa đơn',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
                           TextField(
                             controller: _noteController,
                             textCapitalization: TextCapitalization.sentences,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
                             decoration: const InputDecoration(
                               hintText: 'Nhập tên hóa đơn hoặc mô tả',
-                              hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
+                              hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.normal,
+                              ),
                               border: InputBorder.none,
                               contentPadding: EdgeInsets.zero,
                               isDense: true,
@@ -619,7 +858,9 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
                         ],
                       ),
                     ),
-                    const SizedBox(height: 100), // Padding for sticky bottom button
+                    const SizedBox(
+                      height: 100,
+                    ), // Padding for sticky bottom button
                   ],
                 ),
               ),
@@ -639,13 +880,29 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
             style: ElevatedButton.styleFrom(
               backgroundColor: momoPink,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               elevation: 4,
               minimumSize: const Size.fromHeight(56),
             ),
-            child: _isLoading 
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(_isEditing ? 'Lưu thay đổi' : 'Thêm giao dịch định kỳ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    _isEditing ? 'Lưu thay đổi' : 'Thêm giao dịch định kỳ',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
