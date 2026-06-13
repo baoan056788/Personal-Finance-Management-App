@@ -489,6 +489,16 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               hint: 'example@gmail.com',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              readOnly: widget.isEditing,
+                              trailingIcon: widget.isEditing
+                                  ? const Tooltip(
+                                      message: 'Email không thể thay đổi',
+                                      child: Icon(
+                                        Icons.lock_outline,
+                                        color: Colors.black45,
+                                      ),
+                                    )
+                                  : null,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Vui lòng nhập email';

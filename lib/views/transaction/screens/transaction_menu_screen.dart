@@ -34,7 +34,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
   List<CategoryModel> _categories = [];
   List<WalletModel> _wallets = [];
   final Set<String> _payingIds = {};
-  Key _historyKey = UniqueKey();
+  late Future<List<TransactionModel>> _transactionsFuture;
   final Color momoPink = const Color(0xFFE0248A);
   final TextEditingController _searchController = TextEditingController();
   String _typeFilter = 'all';
@@ -50,8 +50,17 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
+    _transactionsFuture = _transactionService.getAllTransactionsGlobal();
     _loadCategories();
     _loadWallets();
+  }
+
+  Future<void> _refreshTransactions() async {
+    final future = _transactionService.getAllTransactionsGlobal();
+    if (mounted) {
+      setState(() => _transactionsFuture = future);
+    }
+    await future;
   }
 
   @override
@@ -202,7 +211,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                   MaterialPageRoute(
                     builder: (_) => const AddTransactionScreen(),
                   ),
-                ).then((_) => setState(() => _historyKey = UniqueKey()));
+                ).then((_) => _refreshTransactions());
               },
             ),
             const Divider(),
@@ -299,8 +308,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
 
   Widget _buildTransactionList({required String filter}) {
     return FutureBuilder<List<TransactionModel>>(
-      key: _historyKey,
-      future: _transactionService.getAllTransactionsGlobal(),
+      future: _transactionsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -317,7 +325,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
         final visibleTxs = _applyFilters(txs);
         return RefreshIndicator(
           color: momoPink,
-          onRefresh: () async => setState(() => _historyKey = UniqueKey()),
+          onRefresh: _refreshTransactions,
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: visibleTxs.isEmpty ? 2 : visibleTxs.length + 1,
@@ -336,7 +344,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                   MaterialPageRoute(
                     builder: (_) => TransactionDetailScreen(transaction: tx),
                   ),
-                ).then((_) => setState(() => _historyKey = UniqueKey())),
+                ).then((_) => _refreshTransactions()),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -814,8 +822,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                 ),
               ),
               FutureBuilder<List<TransactionModel>>(
-                key: _historyKey,
-                future: _transactionService.getAllTransactionsGlobal(),
+                future: _transactionsFuture,
                 builder: (context, txSnapshot) {
                   if (txSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -838,16 +845,13 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                           ? tx.note
                           : tx.category;
                       return InkWell(
-                        onTap: () =>
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    TransactionDetailScreen(transaction: tx),
-                              ),
-                            ).then(
-                              (_) => setState(() => _historyKey = UniqueKey()),
-                            ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                TransactionDetailScreen(transaction: tx),
+                          ),
+                        ).then((_) => _refreshTransactions()),
                         borderRadius: BorderRadius.circular(14),
                         child: Container(
                           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -1107,10 +1111,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       ),
     );
     if (result == true) {
-      // StreamBuilder will update automatically, but we might want to refresh history if amount changed
-      setState(() {
-        _historyKey = UniqueKey();
-      });
+      _refreshTransactions();
     }
   }
 
@@ -1196,9 +1197,9 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       if (mounted) {
         Navigator.pop(context);
         setState(() {
-          _historyKey = UniqueKey();
           _payingIds.remove(recurringTx.id);
         });
+        _refreshTransactions();
         final nextDateStr = DateFormat('dd/MM/yyyy').format(nextDate);
         final actionText = recurringTx.type == 'income'
             ? 'đã thu thập'

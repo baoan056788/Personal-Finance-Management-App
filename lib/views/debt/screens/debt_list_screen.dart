@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 import '../../../controllers/debt_controller.dart';
 import '../../../models/debt_model.dart';
@@ -508,10 +509,10 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
     final debt = widget.debt;
     _personController = TextEditingController(text: debt?.personName ?? '');
     _amountController = TextEditingController(
-      text: debt == null ? '' : debt.amount.toStringAsFixed(0),
+      text: debt == null ? '' : formatCurrencyInput(debt.amount),
     );
     _paidController = TextEditingController(
-      text: debt == null ? '0' : debt.paidAmount.toStringAsFixed(0),
+      text: debt == null ? '0' : formatCurrencyInput(debt.paidAmount),
     );
     _noteController = TextEditingController(text: debt?.note ?? '');
     _type = debt?.type ?? 'borrowed';
@@ -528,8 +529,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
   }
 
   double? _parseMoney(String value) {
-    final normalized = value.replaceAll(RegExp(r'[.,\s]'), '');
-    return double.tryParse(normalized);
+    return parseCurrencyInput(value);
   }
 
   Future<void> _pickDate() async {
@@ -672,6 +672,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
                   controller: _amountController,
                   enabled: !_isSaving,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Số tiền',
@@ -690,6 +691,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
                   controller: _paidController,
                   enabled: !_isSaving,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Đã thanh toán',

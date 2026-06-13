@@ -4,6 +4,13 @@ import '../../../models/transaction_model.dart';
 import '../../../controllers/budget_controller.dart';
 import '../../../controllers/goal_controller.dart';
 
+class InsufficientWalletBalanceException implements Exception {
+  const InsufficientWalletBalanceException();
+
+  @override
+  String toString() => 'Số dư ví không đủ để thực hiện giao dịch';
+}
+
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BudgetController _budgetController = BudgetController();
@@ -16,111 +23,163 @@ class TransactionService {
   }
 
   CollectionReference _transactionsRef(String walletId) {
-    return _firestore.collection('users').doc(_uid).collection('wallets').doc(walletId).collection('transactions');
+    return _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('wallets')
+        .doc(walletId)
+        .collection('transactions');
   }
 
   DocumentReference _walletRef(String walletId) {
-    return _firestore.collection('users').doc(_uid).collection('wallets').doc(walletId);
+    return _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('wallets')
+        .doc(walletId);
   }
 
   Stream<List<TransactionModel>> getWalletTransactions(String walletId) {
     return _transactionsRef(walletId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TransactionModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => TransactionModel.fromMap(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .toList(),
+        );
   }
 
-  Future<String?> createTransaction(String walletId, TransactionModel transaction, double currentWalletBalance) async {
-    final batch = _firestore.batch();
+  double _applyTransaction(double balance, TransactionModel transaction) {
+    return transaction.type == 'income'
+        ? balance + transaction.amount
+        : balance - transaction.amount;
+  }
 
-    // 1. Add new transaction (ensure walletId is set)
-    final txWithWallet = transaction.walletId.isEmpty 
-        ? transaction.copyWith(walletId: walletId) 
-        : transaction;
-        
+  double _revertTransaction(double balance, TransactionModel transaction) {
+    return transaction.type == 'income'
+        ? balance - transaction.amount
+        : balance + transaction.amount;
+  }
+
+  void _ensureNonNegative(double balance) {
+    if (balance < 0) throw const InsufficientWalletBalanceException();
+  }
+
+  Future<String?> createTransaction(
+    String walletId,
+    TransactionModel transaction,
+  ) async {
+    final txWithWallet = transaction.copyWith(walletId: walletId);
     final transactionRef = _transactionsRef(walletId).doc(txWithWallet.id);
-    batch.set(transactionRef, txWithWallet.toMap());
+    final walletRef = _walletRef(walletId);
 
-    // 2. Update wallet balance
-    double newBalance = currentWalletBalance;
-    if (txWithWallet.type == 'income') {
-      newBalance += txWithWallet.amount;
-    } else {
-      newBalance -= txWithWallet.amount;
-    }
+    await _firestore.runTransaction((firestoreTransaction) async {
+      final walletDoc = await firestoreTransaction.get(walletRef);
+      if (!walletDoc.exists) throw Exception('Không tìm thấy ví');
 
-    batch.update(_walletRef(walletId), {'balance': newBalance});
+      final walletData = walletDoc.data() as Map<String, dynamic>;
+      final currentBalance = (walletData['balance'] ?? 0).toDouble();
+      final newBalance = _applyTransaction(currentBalance, txWithWallet);
+      _ensureNonNegative(newBalance);
 
-    // Commit batch
-    await batch.commit();
+      firestoreTransaction.set(transactionRef, txWithWallet.toMap());
+      firestoreTransaction.update(walletRef, {'balance': newBalance});
+    });
 
-    // Hook budget recalculation
     return await _budgetController.recalculateBudget(txWithWallet);
   }
 
-  Future<String?> createTransactionAutoBalance(String walletId, TransactionModel transaction) async {
-    final docSnapshot = await _walletRef(walletId).get();
-    double currentBalance = 0;
-    if (docSnapshot.exists && docSnapshot.data() != null) {
-      currentBalance = ((docSnapshot.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
-    }
-    return await createTransaction(walletId, transaction, currentBalance);
+  Future<String?> createTransactionAutoBalance(
+    String walletId,
+    TransactionModel transaction,
+  ) async {
+    return await createTransaction(walletId, transaction);
   }
 
-  Future<String?> updateTransaction(String walletId, TransactionModel oldTx, TransactionModel newTx) async {
-    final batch = _firestore.batch();
-    
-    // 1. If wallet changed, we need to delete from old and add to new
+  Future<String?> updateTransaction(
+    String walletId,
+    TransactionModel oldTx,
+    TransactionModel newTx,
+  ) async {
+    final txWithWallet = newTx.copyWith(walletId: walletId);
+
     if (oldTx.walletId != walletId && oldTx.walletId.isNotEmpty) {
-       await deleteTransactionGlobal(oldTx);
-       return await createTransactionAutoBalance(walletId, newTx);
+      final oldWalletRef = _walletRef(oldTx.walletId);
+      final newWalletRef = _walletRef(walletId);
+      final oldTransactionRef = _transactionsRef(oldTx.walletId).doc(oldTx.id);
+      final newTransactionRef = _transactionsRef(walletId).doc(txWithWallet.id);
+
+      await _firestore.runTransaction((firestoreTransaction) async {
+        final oldWalletDoc = await firestoreTransaction.get(oldWalletRef);
+        final newWalletDoc = await firestoreTransaction.get(newWalletRef);
+        if (!oldWalletDoc.exists || !newWalletDoc.exists) {
+          throw Exception('Không tìm thấy ví');
+        }
+
+        final oldBalance =
+            ((oldWalletDoc.data() as Map<String, dynamic>)['balance'] ?? 0)
+                .toDouble();
+        final newBalance =
+            ((newWalletDoc.data() as Map<String, dynamic>)['balance'] ?? 0)
+                .toDouble();
+        final oldWalletBalance = _revertTransaction(oldBalance, oldTx);
+        final newWalletBalance = _applyTransaction(newBalance, txWithWallet);
+        _ensureNonNegative(oldWalletBalance);
+        _ensureNonNegative(newWalletBalance);
+
+        firestoreTransaction.delete(oldTransactionRef);
+        firestoreTransaction.set(newTransactionRef, txWithWallet.toMap());
+        firestoreTransaction.update(oldWalletRef, {
+          'balance': oldWalletBalance,
+        });
+        firestoreTransaction.update(newWalletRef, {
+          'balance': newWalletBalance,
+        });
+      });
+    } else {
+      final walletRef = _walletRef(walletId);
+      final transactionRef = _transactionsRef(walletId).doc(txWithWallet.id);
+
+      await _firestore.runTransaction((firestoreTransaction) async {
+        final walletDoc = await firestoreTransaction.get(walletRef);
+        if (!walletDoc.exists) throw Exception('Không tìm thấy ví');
+
+        final currentBalance =
+            ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0)
+                .toDouble();
+        final revertedBalance = _revertTransaction(currentBalance, oldTx);
+        final newBalance = _applyTransaction(revertedBalance, txWithWallet);
+        _ensureNonNegative(newBalance);
+
+        firestoreTransaction.set(transactionRef, txWithWallet.toMap());
+        firestoreTransaction.update(walletRef, {'balance': newBalance});
+      });
     }
 
-    // 2. Update transaction doc
-    final transactionRef = _transactionsRef(walletId).doc(newTx.id);
-    batch.update(transactionRef, newTx.toMap());
-
-    // 3. Adjust balance if amount or type changed
-    if (oldTx.amount != newTx.amount || oldTx.type != newTx.type) {
-      final walletDoc = await _walletRef(walletId).get();
-      if (walletDoc.exists) {
-        double currentBalance = ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
-        
-        // Revert old
-        double adjustedBalance = currentBalance;
-        if (oldTx.type == 'income') {
-          adjustedBalance -= oldTx.amount;
-        } else {
-          adjustedBalance += oldTx.amount;
-        }
-        
-        // Apply new
-        if (newTx.type == 'income') {
-          adjustedBalance += newTx.amount;
-        } else {
-          adjustedBalance -= newTx.amount;
-        }
-        
-        batch.update(_walletRef(walletId), {'balance': adjustedBalance});
-      }
-    }
-    
-    await batch.commit();
-
-    // Hook budget recalculation
     await _budgetController.rollbackBudget(oldTx);
-    await _goalController.handleTransactionUpdated(newTx);
-    return await _budgetController.recalculateBudget(newTx);
+    await _goalController.handleTransactionUpdated(txWithWallet);
+    return await _budgetController.recalculateBudget(txWithWallet);
   }
 
   Future<void> deleteTransactionGlobal(TransactionModel tx) async {
     if (tx.walletId.isEmpty) {
       // Legacy: try to find which wallet it belongs to
-      final wallets = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+      final wallets = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('wallets')
+          .get();
       for (var w in wallets.docs) {
-        final doc = await w.reference.collection('transactions').doc(tx.id).get();
+        final doc = await w.reference
+            .collection('transactions')
+            .doc(tx.id)
+            .get();
         if (doc.exists) {
           await _deleteFromWallet(w.id, tx);
           return;
@@ -133,36 +192,40 @@ class TransactionService {
   }
 
   Future<void> _deleteFromWallet(String walletId, TransactionModel tx) async {
-    final batch = _firestore.batch();
-    
-    // 1. Delete transaction
-    batch.delete(_transactionsRef(walletId).doc(tx.id));
-    
-    // 2. Revert balance
-    final walletDoc = await _walletRef(walletId).get();
-    if (walletDoc.exists) {
-      double currentBalance = ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toDouble();
-      double newBalance = currentBalance;
-      if (tx.type == 'income') {
-        newBalance -= tx.amount;
-      } else {
-        newBalance += tx.amount;
-      }
-      batch.update(_walletRef(walletId), {'balance': newBalance});
-    }
-    
-    await batch.commit();
+    final walletRef = _walletRef(walletId);
+    final transactionRef = _transactionsRef(walletId).doc(tx.id);
 
-    // Hook budget rollback
+    await _firestore.runTransaction((firestoreTransaction) async {
+      final walletDoc = await firestoreTransaction.get(walletRef);
+      if (!walletDoc.exists) throw Exception('Không tìm thấy ví');
+
+      final currentBalance =
+          ((walletDoc.data() as Map<String, dynamic>)['balance'] ?? 0)
+              .toDouble();
+      final newBalance = _revertTransaction(currentBalance, tx);
+      _ensureNonNegative(newBalance);
+
+      firestoreTransaction.delete(transactionRef);
+      firestoreTransaction.update(walletRef, {'balance': newBalance});
+    });
+
     await _budgetController.rollbackBudget(tx);
     await _goalController.handleTransactionDeleted(tx.id);
   }
 
   Future<List<TransactionModel>> getRecentTransactionsGlobal() async {
-    final walletsSnapshot = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+    final walletsSnapshot = await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('wallets')
+        .get();
     List<TransactionModel> allTransactions = [];
     for (var doc in walletsSnapshot.docs) {
-      final txSnapshot = await doc.reference.collection('transactions').orderBy('createdAt', descending: true).limit(5).get();
+      final txSnapshot = await doc.reference
+          .collection('transactions')
+          .orderBy('createdAt', descending: true)
+          .limit(5)
+          .get();
       for (var txDoc in txSnapshot.docs) {
         allTransactions.add(TransactionModel.fromMap(txDoc.data(), txDoc.id));
       }
@@ -172,10 +235,17 @@ class TransactionService {
   }
 
   Future<List<TransactionModel>> getAllTransactionsGlobal() async {
-    final walletsSnapshot = await _firestore.collection('users').doc(_uid).collection('wallets').get();
+    final walletsSnapshot = await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('wallets')
+        .get();
     List<TransactionModel> allTransactions = [];
     for (var doc in walletsSnapshot.docs) {
-      final txSnapshot = await doc.reference.collection('transactions').orderBy('createdAt', descending: true).get();
+      final txSnapshot = await doc.reference
+          .collection('transactions')
+          .orderBy('createdAt', descending: true)
+          .get();
       for (var txDoc in txSnapshot.docs) {
         allTransactions.add(TransactionModel.fromMap(txDoc.data(), txDoc.id));
       }

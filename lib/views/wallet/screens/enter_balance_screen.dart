@@ -5,16 +5,13 @@ import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_text_field.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 class EnterBalanceScreen extends StatefulWidget {
   final String name;
   final String type;
 
-  const EnterBalanceScreen({
-    super.key,
-    required this.name,
-    required this.type,
-  });
+  const EnterBalanceScreen({super.key, required this.name, required this.type});
 
   @override
   State<EnterBalanceScreen> createState() => _EnterBalanceScreenState();
@@ -27,8 +24,11 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
   final WalletService _walletService = WalletService();
 
   void _setPresetAmount(String amount) {
-    _balanceController.text = amount;
-    _balanceController.selection = TextSelection.fromPosition(TextPosition(offset: amount.length));
+    final formatted = formatCurrencyInput(int.parse(amount));
+    _balanceController.text = formatted;
+    _balanceController.selection = TextSelection.fromPosition(
+      TextPosition(offset: formatted.length),
+    );
   }
 
   Widget _buildPresetChip(String label, String value) {
@@ -57,7 +57,7 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
         id: newId,
         name: widget.name,
         type: widget.type,
-        balance: double.parse(_balanceController.text.replaceAll(',', '')),
+        balance: parseCurrencyInput(_balanceController.text)!,
         createdAt: DateTime.now(),
       );
 
@@ -69,13 +69,16 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
       }, SetOptions(merge: true));
 
       if (!mounted) return;
-      
+
       // Pop the onboarding stack cleanly to return to root
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã xảy ra lỗi: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text('Đã xảy ra lỗi: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     } finally {
       if (mounted) {
@@ -95,7 +98,10 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7FF),
       appBar: AppBar(
-        title: const Text('Số dư ban đầu', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Số dư ban đầu',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -110,7 +116,11 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                const Icon(Icons.account_balance, size: 80, color: Color(0xFFF06292)),
+                const Icon(
+                  Icons.account_balance,
+                  size: 80,
+                  color: Color(0xFFF06292),
+                ),
                 const SizedBox(height: 24),
                 Text(
                   'Bạn hiện đang có bao nhiêu tiền trong ví\n"${widget.name}"?',
@@ -123,13 +133,20 @@ class _EnterBalanceScreenState extends State<EnterBalanceScreen> {
                   hint: 'Nhập số tiền',
                   controller: _balanceController,
                   prefixIcon: Icons.attach_money_outlined,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [CurrencyInputFormatter()],
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Vui lòng nhập số dư';
-                    final balance = double.tryParse(value.replaceAll(',', ''));
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Vui lòng nhập số dư';
+                    }
+                    final balance = parseCurrencyInput(value);
                     if (balance == null) return 'Số dư không hợp lệ';
                     if (balance < 0) return 'Số dư không được âm';
-                    if (balance > 999999999) return 'Số dư tối đa là 999,999,999';
+                    if (balance > 999999999) {
+                      return 'Số dư tối đa là 999,999,999';
+                    }
                     return null;
                   },
                 ),
