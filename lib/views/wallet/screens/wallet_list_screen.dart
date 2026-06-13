@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/wallet_model.dart';
 import '../services/wallet_service.dart';
 import 'add_wallet_screen.dart';
+import 'transfer_money_screen.dart';
 import 'wallet_detail_screen.dart';
 
 class WalletListScreen extends StatefulWidget {
@@ -176,6 +177,27 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                 color: Color(0xFFB02A76),
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            FilledButton.icon(
+                              onPressed: wallets.length < 2
+                                  ? null
+                                  : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const TransferMoneyScreen(),
+                                      ),
+                                    ),
+                              icon: const Icon(Icons.swap_horiz),
+                              label: Text(
+                                wallets.length < 2
+                                    ? 'Cần ít nhất 2 ví'
+                                    : 'Chuyển tiền giữa các ví',
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFB02A76),
+                                foregroundColor: Colors.white,
                               ),
                             ),
                           ],

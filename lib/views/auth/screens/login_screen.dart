@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart' as gsignin;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../models/app_config_model.dart';
+import '../../../services/app_config_service.dart';
+import '../../../utils/auth_validation.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -23,11 +29,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  AppConfigModel _appConfig = const AppConfigModel();
+  StreamSubscription<AppConfigModel>? _configSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadRememberMePreference();
+    _configSubscription = AppConfigService().watchConfig().listen((config) {
+      if (mounted) setState(() => _appConfig = config);
+    });
   }
 
   Future<void> _loadRememberMePreference() async {
@@ -46,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _configSubscription?.cancel();
     super.dispose();
   }
 
@@ -78,6 +90,9 @@ class _LoginScreenState extends State<LoginScreen> {
         message = 'Không thể kết nối mạng.';
       } else if (e.code == 'too-many-requests') {
         message = 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.';
+      } else if (e.code == 'user-disabled') {
+        message =
+            'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.';
       }
 
       if (!mounted) return;
@@ -97,43 +112,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim().toLowerCase();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập email hợp lệ trước khi khôi phục mật khẩu.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã gửi email khôi phục mật khẩu đến $email.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Không thể gửi email khôi phục mật khẩu.';
-      if (e.code == 'user-not-found') {
-        message = 'Email này chưa được đăng ký.';
-      } else if (e.code == 'invalid-email') {
-        message = 'Email không hợp lệ.';
-      } else if (e.code == 'network-request-failed') {
-        message = 'Không thể kết nối mạng.';
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
-      );
-    }
+  Future<void> _openForgotPassword() async {
+    FocusScope.of(context).unfocus();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
+      ),
+    );
   }
 
   Future<void> _loginGoogle() async {
@@ -160,6 +147,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = userCredential.user;
 
       if (user != null) {
+        if (userCredential.additionalUserInfo?.isNewUser == true &&
+            !_appConfig.registrationEnabled) {
+          await user.delete();
+          await FirebaseAuth.instance.signOut();
+          throw Exception('Hệ thống đang tạm dừng đăng ký tài khoản mới.');
+        }
         final docRef = FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid);
@@ -170,9 +163,17 @@ class _LoginScreenState extends State<LoginScreen> {
             'fullName': user.displayName ?? 'Người dùng',
             'email': user.email,
             'createdAt': FieldValue.serverTimestamp(),
+            'lastLoginAt': FieldValue.serverTimestamp(),
             'onboardingCompleted': false,
             'loginProvider': 'google',
             'avatarUrl': user.photoURL,
+            'role': 'user',
+            'status': 'active',
+          }, SetOptions(merge: true));
+        } else {
+          await docRef.set({
+            'lastLoginAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
       }
@@ -182,6 +183,9 @@ class _LoginScreenState extends State<LoginScreen> {
       String message = 'Đăng nhập Google thất bại.';
       if (e.code == 'network-request-failed') {
         message = 'Không thể kết nối mạng.';
+      } else if (e.code == 'user-disabled') {
+        message =
+            'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.';
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,8 +224,17 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 20),
                 const Text(
-                  'Chào mừng bạn\nđến với QLTC_N11',
+                  'Chào mừng bạn',
                   style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                    color: Color(0xFFB02A76),
+                  ),
+                ),
+                Text(
+                  'đến với ${_appConfig.appName}',
+                  style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     height: 1.2,
@@ -248,10 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   maxLength: 100,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập email';
-                    }
-                    return null;
+                    return validateEmailAddress(value);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -304,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const Spacer(),
                     TextButton(
-                      onPressed: _isLoading ? null : _resetPassword,
+                      onPressed: _isLoading ? null : _openForgotPassword,
                       child: const Text(
                         'Quên mật khẩu?',
                         style: TextStyle(
@@ -396,7 +406,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: Colors.black54),
                     ),
                     TextButton(
-                      onPressed: _isLoading
+                      onPressed: _isLoading || !_appConfig.registrationEnabled
                           ? null
                           : () {
                               Navigator.push(
@@ -416,6 +426,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+                if (!_appConfig.registrationEnabled)
+                  const Text(
+                    'Hệ thống đang tạm dừng đăng ký tài khoản mới.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
               ],
             ),
           ),

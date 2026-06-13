@@ -169,7 +169,7 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
 
               return Column(
                 children: txs.map((tx) {
-                  final bool isIncome = tx.type == 'income';
+                  final bool isIncome = tx.isCredit;
                   final cat = _findCategory(tx.categoryId, tx.category);
                   final String realCategoryName = cat?.name ?? (tx.category.length > 15 ? "Khác" : tx.category);
                   final String displayName = (tx.note.isNotEmpty && tx.note.length < 50) ? tx.note : realCategoryName;

@@ -6,6 +6,7 @@ import '../../models/app_nav_item.dart';
 import '../../models/debt_model.dart';
 import '../../models/recurring_transaction_model.dart';
 import '../../services/notification_settings_service.dart';
+import '../../services/system_notification_service.dart';
 import '../transaction/screens/transaction_menu_screen.dart';
 import '../wallet/screens/wallet_list_screen.dart';
 import 'screens/home_screen.dart';
@@ -16,7 +17,9 @@ import 'widgets/header_widget.dart';
 import 'widgets/notification_reminder_content.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  final bool isAdmin;
+
+  const HomeView({super.key, required this.isAdmin});
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -41,32 +44,19 @@ class _HomeViewState extends State<HomeView> {
     setState(() => _isLoadingNotifications = true);
 
     try {
+      final systemNotifications = await SystemNotificationService()
+          .getActiveNotifications();
       final settings = await NotificationSettingsService().load();
       if (!mounted) return;
 
-      if (!settings.enabled) {
-        await _showNotificationMessage(
-          'Thông báo đang tắt',
-          'Bạn có thể bật lại trong Tiện ích > Thông báo.',
-        );
-        return;
-      }
-      if (!settings.debtReminders && !settings.recurringReminders) {
-        await _showNotificationMessage(
-          'Chưa chọn loại nhắc nhở',
-          'Hãy bật nhắc công nợ hoặc giao dịch định kỳ trong phần cài đặt thông báo.',
-        );
-        return;
-      }
-
-      final debts = settings.debtReminders
+      final debts = settings.enabled && settings.debtReminders
           ? await DebtController().getDueReminders(
               daysAhead: settings.advanceDays,
             )
           : <DebtModel>[];
 
       var upcomingRecurring = <RecurringTransactionModel>[];
-      if (settings.recurringReminders) {
+      if (settings.enabled && settings.recurringReminders) {
         final recurring = await RecurringTransactionController()
             .getRecurringTransactions()
             .first;
@@ -87,6 +77,16 @@ class _HomeViewState extends State<HomeView> {
       }
 
       if (!mounted) return;
+      if (systemNotifications.isEmpty &&
+          debts.isEmpty &&
+          upcomingRecurring.isEmpty &&
+          !settings.enabled) {
+        await _showNotificationMessage(
+          'Thông báo đang tắt',
+          'Bạn có thể bật lại trong Tiện ích > Thông báo.',
+        );
+        return;
+      }
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -101,6 +101,7 @@ class _HomeViewState extends State<HomeView> {
             ],
           ),
           content: NotificationReminderContent(
+            systemNotifications: systemNotifications,
             debts: debts,
             recurring: upcomingRecurring,
           ),
@@ -184,7 +185,7 @@ class _HomeViewState extends State<HomeView> {
         title: 'Tiện ích',
         icon: Icons.grid_view_outlined,
         activeIcon: Icons.grid_view,
-        screen: const UtilityScreen(),
+        screen: UtilityScreen(isAdmin: widget.isAdmin),
       ),
     ];
 

@@ -42,7 +42,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             itemCount: transactions.length,
             itemBuilder: (context, index) {
               final tx = transactions[index];
-              final isIncome = tx.type == 'income';
+              final isIncome = tx.isCredit;
               final sign = isIncome ? '+' : '-';
               final amountStr = '$sign${NumberFormat('#,###').format(tx.amount)}đ';
               final dateStr = DateFormat('dd/MM/yyyy • HH:mm').format(tx.createdAt);

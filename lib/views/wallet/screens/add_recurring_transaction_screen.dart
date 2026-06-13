@@ -15,6 +15,7 @@ import '../../../controllers/recurring_transaction_controller.dart';
 import '../services/wallet_service.dart';
 import '../widgets/frequency_bottom_sheet.dart';
 import '../../../utils/currency_input_formatter.dart';
+import '../../../services/app_config_service.dart';
 
 class AddRecurringTransactionScreen extends StatefulWidget {
   final RecurringTransactionModel? initialTransaction; // NEW: support edit mode
@@ -188,6 +189,19 @@ class _AddRecurringTransactionScreenState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0')));
+      return;
+    }
+    final appConfig = await AppConfigService().getConfig();
+    if (!mounted) return;
+    if (amount > appConfig.maxTransactionAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Số tiền vượt hạn mức ${NumberFormat.decimalPattern('vi_VN').format(appConfig.maxTransactionAmount)}đ.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 

@@ -217,7 +217,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   itemCount: transactions.length,
                   itemBuilder: (context, index) {
                     final transaction = transactions[index];
-                    final isIncome = transaction.type == 'income';
+                    final isIncome = transaction.isCredit;
                     return Card(
                       elevation: 0,
                       color: Colors.white,
