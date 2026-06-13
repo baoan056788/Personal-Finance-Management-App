@@ -11,6 +11,10 @@ class TransactionModel {
   final String? imageUrl;
   final bool isRecurring;
   final String walletId; // NEW: Track which wallet this belongs to
+  final String? transferId;
+  final String? transferDirection;
+  final String? relatedWalletId;
+  final String? relatedWalletName;
 
   TransactionModel({
     required this.id,
@@ -23,7 +27,20 @@ class TransactionModel {
     this.imageUrl,
     this.isRecurring = false,
     this.walletId = '', // Default to empty for legacy
+    this.transferId,
+    this.transferDirection,
+    this.relatedWalletId,
+    this.relatedWalletName,
   });
+
+  bool get isTransfer => type == 'transfer';
+
+  bool get isIncomingTransfer =>
+      isTransfer &&
+      (transferDirection == 'in' ||
+          (transferDirection == null && category == 'Nhận tiền'));
+
+  bool get isCredit => type == 'income' || isIncomingTransfer;
 
   Map<String, dynamic> toMap() {
     return {
@@ -36,6 +53,10 @@ class TransactionModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'isRecurring': isRecurring,
       'walletId': walletId,
+      if (transferId != null) 'transferId': transferId,
+      if (transferDirection != null) 'transferDirection': transferDirection,
+      if (relatedWalletId != null) 'relatedWalletId': relatedWalletId,
+      if (relatedWalletName != null) 'relatedWalletName': relatedWalletName,
       if (imageUrl != null) 'imageUrl': imageUrl,
     };
   }
@@ -52,6 +73,10 @@ class TransactionModel {
       imageUrl: map['imageUrl'],
       isRecurring: map['isRecurring'] ?? false,
       walletId: map['walletId'] ?? '',
+      transferId: map['transferId'],
+      transferDirection: map['transferDirection'],
+      relatedWalletId: map['relatedWalletId'],
+      relatedWalletName: map['relatedWalletName'],
     );
   }
 
@@ -66,6 +91,10 @@ class TransactionModel {
     String? imageUrl,
     bool? isRecurring,
     String? walletId,
+    String? transferId,
+    String? transferDirection,
+    String? relatedWalletId,
+    String? relatedWalletName,
   }) {
     return TransactionModel(
       id: id ?? this.id,
@@ -78,6 +107,10 @@ class TransactionModel {
       imageUrl: imageUrl ?? this.imageUrl,
       isRecurring: isRecurring ?? this.isRecurring,
       walletId: walletId ?? this.walletId,
+      transferId: transferId ?? this.transferId,
+      transferDirection: transferDirection ?? this.transferDirection,
+      relatedWalletId: relatedWalletId ?? this.relatedWalletId,
+      relatedWalletName: relatedWalletName ?? this.relatedWalletName,
     );
   }
 }

@@ -8,9 +8,13 @@ import '../../debt/screens/debt_list_screen.dart';
 import '../../goal/screens/goal_list_screen.dart';
 import '../../notification/screens/notification_settings_screen.dart';
 import '../../../services/demo_data_service.dart';
+import '../../../services/app_config_service.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 
 class UtilityScreen extends StatefulWidget {
-  const UtilityScreen({super.key});
+  final bool isAdmin;
+
+  const UtilityScreen({super.key, required this.isAdmin});
 
   @override
   State<UtilityScreen> createState() => _UtilityScreenState();
@@ -88,6 +92,36 @@ class _UtilityScreenState extends State<UtilityScreen> {
         setState(() => _isSeedingDemoData = false);
       }
     }
+  }
+
+  Future<void> _showSupport(BuildContext context) async {
+    final config = await AppConfigService().getConfig();
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Trợ giúp & Hỗ trợ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email: ${config.supportEmail}'),
+            const SizedBox(height: 8),
+            Text('Điện thoại: ${config.supportPhone}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Đóng',
+              style: TextStyle(color: Color(0xFFF06292)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openChangePasswordDialog(BuildContext context) async {
@@ -551,6 +585,15 @@ class _UtilityScreenState extends State<UtilityScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (widget.isAdmin)
+            _buildSettingsTile(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Quản trị hệ thống',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+              ),
+            ),
           _buildSettingsTile(
             icon: _isSeedingDemoData ? Icons.hourglass_top : Icons.auto_awesome,
             title: _isSeedingDemoData
@@ -610,35 +653,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
           _buildSettingsTile(
             icon: Icons.help_outline,
             title: 'Trợ giúp & Hỗ trợ',
-            onTap: () => showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Text('Trợ giúp & Hỗ trợ'),
-                content: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('📧 Email: support@finance.app'),
-                    SizedBox(height: 8),
-                    Text('📞 Hotline: 1800-xxxx'),
-                    SizedBox(height: 8),
-                    Text('⏰ Hỗ trợ 24/7'),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'Đóng',
-                      style: TextStyle(color: Color(0xFFF06292)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            onTap: () => _showSupport(context),
           ),
           const SizedBox(height: 32),
           Container(

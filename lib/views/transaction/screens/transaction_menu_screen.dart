@@ -12,6 +12,7 @@ import '../../../controllers/category_controller.dart';
 import '../../wallet/screens/add_transaction_screen.dart';
 import '../../wallet/screens/category_management_screen.dart';
 import '../../wallet/screens/add_recurring_transaction_screen.dart';
+import '../../wallet/screens/transfer_money_screen.dart';
 import '../../home/screens/transaction_detail_screen.dart';
 
 class TransactionMenuScreen extends StatefulWidget {
@@ -217,6 +218,26 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
             const Divider(),
             ListTile(
               leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE8F5E9),
+                child: Icon(Icons.swap_horiz, color: Colors.green),
+              ),
+              title: const Text(
+                'Chuyển tiền giữa các ví',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TransferMoneyScreen(),
+                  ),
+                ).then((_) => _refreshTransactions());
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const CircleAvatar(
                 backgroundColor: Color(0xFFF3E5F5),
                 child: Icon(Icons.schedule_send, color: Colors.purple),
               ),
@@ -333,7 +354,7 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
               if (index == 0) return _buildFilterPanel(visibleTxs);
               if (visibleTxs.isEmpty) return _buildNoFilterResults();
               final tx = visibleTxs[index - 1];
-              final bool isIncome = tx.type == 'income';
+              final bool isIncome = tx.isCredit;
               final String displayName =
                   (tx.note.isNotEmpty && tx.note.length < 50)
                   ? tx.note

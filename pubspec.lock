@@ -205,26 +205,26 @@ packages:
     dependency: "direct main"
     description:
       name: firebase_core
-      sha256: "15bf6f85a6c8cf786344b2f163350428fc4bce105bc5332d42fb951d90b7664e"
+      sha256: ec46a100a560d3bd5f97f2d89ba7492cb09b6dd0a4a28753d1258f360d6bd9f9
       url: "https://pub.dev"
     source: hosted
-    version: "4.8.0"
+    version: "4.10.0"
   firebase_core_platform_interface:
     dependency: transitive
     description:
       name: firebase_core_platform_interface
-      sha256: "7aafd426ad1926cfb1a7e9e012df5eff7d9a55200b31b04bc65ef45329ea5dee"
+      sha256: "4a120366dbf7d5a8ee9438978530b664b855728fb8dcc3a201017660817e555b"
       url: "https://pub.dev"
     source: hosted
-    version: "7.0.0"
+    version: "7.0.1"
   firebase_core_web:
     dependency: transitive
     description:
       name: firebase_core_web
-      sha256: "73b01cba93a4f673596a7664f8265eb538f007a84a8f5880359db8ff76c3471b"
+      sha256: "5ad1be848692ec148f2d6a8ad2a3838cb852ea5f3c9e6479a7afce479e1854f8"
       url: "https://pub.dev"
     source: hosted
-    version: "3.6.1"
+    version: "3.8.0"
   firebase_storage:
     dependency: "direct main"
     description:

@@ -16,6 +16,7 @@ import '../services/transaction_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/frequency_bottom_sheet.dart';
 import '../../../utils/currency_input_formatter.dart';
+import '../../../services/app_config_service.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final WalletModel? wallet;
@@ -190,6 +191,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Số tiền phải lớn hơn 0')));
+      return;
+    }
+    final appConfig = await AppConfigService().getConfig();
+    if (!mounted) return;
+    if (amount > appConfig.maxTransactionAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Số tiền vượt hạn mức ${NumberFormat.decimalPattern('vi_VN').format(appConfig.maxTransactionAmount)}đ.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
     if (_selectedCategory == null) {

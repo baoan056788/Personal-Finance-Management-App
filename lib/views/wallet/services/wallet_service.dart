@@ -77,6 +77,7 @@ class WalletService {
     final destRef = _walletsRef.doc(destWalletId);
     final sourceTransactionRef = sourceRef.collection('transactions').doc();
     final destTransactionRef = destRef.collection('transactions').doc();
+    final transferId = _firestore.collection('_transfer_ids').doc().id;
 
     await _firestore.runTransaction((transaction) async {
       final sourceSnap = await transaction.get(sourceRef);
@@ -100,18 +101,26 @@ class WalletService {
         'amount': amount,
         'type': 'transfer',
         'category': 'Chuyển tiền',
-        'note': 'Đến: ${destData['name']} - $note',
+        'note': 'Đến: ${destData['name']}${note.isEmpty ? '' : ' - $note'}',
         'createdAt': FieldValue.serverTimestamp(),
         'walletId': sourceWalletId,
+        'transferId': transferId,
+        'transferDirection': 'out',
+        'relatedWalletId': destWalletId,
+        'relatedWalletName': destData['name'],
       });
       transaction.set(destTransactionRef, {
         'id': destTransactionRef.id,
         'amount': amount,
-        'type': 'income',
+        'type': 'transfer',
         'category': 'Nhận tiền',
-        'note': 'Từ: ${sourceData['name']} - $note',
+        'note': 'Từ: ${sourceData['name']}${note.isEmpty ? '' : ' - $note'}',
         'createdAt': FieldValue.serverTimestamp(),
         'walletId': destWalletId,
+        'transferId': transferId,
+        'transferDirection': 'in',
+        'relatedWalletId': sourceWalletId,
+        'relatedWalletName': sourceData['name'],
       });
     });
   }

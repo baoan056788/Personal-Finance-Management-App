@@ -56,6 +56,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   }
 
   Future<void> _deleteTransaction() async {
+    if (_currentTransaction.isTransfer) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -89,6 +90,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   }
 
   void _editTransaction() async {
+    if (_currentTransaction.isTransfer) return;
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -112,7 +114,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   Widget build(BuildContext context) {
     final tx = _currentTransaction;
     final cat = _findCategory();
-    final isExpense = tx.type == 'expense';
+    final isExpense = !tx.isCredit;
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -123,7 +125,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20), onPressed: () => Navigator.pop(context)),
         actions: [
-          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: _isLoading ? null : _deleteTransaction),
+          if (!tx.isTransfer)
+            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: _isLoading ? null : _deleteTransaction),
           const SizedBox(width: 8),
         ],
       ),
@@ -154,6 +157,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                   _buildDetailRow(Icons.calendar_today_outlined, 'Thời gian', DateFormat('EEEE, dd/MM/yyyy HH:mm', 'vi_VN').format(tx.createdAt)),
                   const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFF5F5F5))),
                   _buildDetailRow(Icons.notes, 'Ghi chú', tx.note.isNotEmpty ? tx.note : 'Không có ghi chú'),
+                  if (tx.isTransfer) ...[
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFF5F5F5))),
+                    _buildDetailRow(
+                      Icons.swap_horiz,
+                      tx.isIncomingTransfer ? 'Chuyển từ ví' : 'Chuyển đến ví',
+                      tx.relatedWalletName ?? 'Ví khác',
+                    ),
+                  ],
                   const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFF5F5F5))),
                   _buildDetailRow(Icons.wallet, 'Nguồn tiền', 'Ví của tôi'),
                   if (tx.isRecurring) ...[
@@ -188,11 +199,17 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _editTransaction,
-                style: ElevatedButton.styleFrom(backgroundColor: momoPink, minimumSize: const Size.fromHeight(56), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-                child: const Text('Chỉnh sửa giao dịch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
+              child: tx.isTransfer
+                  ? const Text(
+                      'Giao dịch chuyển ví được đồng bộ tự động giữa hai ví.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black54),
+                    )
+                  : ElevatedButton(
+                      onPressed: _isLoading ? null : _editTransaction,
+                      style: ElevatedButton.styleFrom(backgroundColor: momoPink, minimumSize: const Size.fromHeight(56), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                      child: const Text('Chỉnh sửa giao dịch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
             ),
             const SizedBox(height: 40),
           ],

@@ -3,13 +3,16 @@ import 'package:intl/intl.dart';
 
 import '../../../models/debt_model.dart';
 import '../../../models/recurring_transaction_model.dart';
+import '../../../models/system_notification_model.dart';
 
 class NotificationReminderContent extends StatelessWidget {
+  final List<SystemNotificationModel> systemNotifications;
   final List<DebtModel> debts;
   final List<RecurringTransactionModel> recurring;
 
   const NotificationReminderContent({
     super.key,
+    required this.systemNotifications,
     required this.debts,
     required this.recurring,
   });
@@ -50,7 +53,7 @@ class NotificationReminderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (debts.isEmpty && recurring.isEmpty) {
+    if (systemNotifications.isEmpty && debts.isEmpty && recurring.isEmpty) {
       return const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -76,7 +79,75 @@ class NotificationReminderContent extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (systemNotifications.isNotEmpty) ...[
+                const Text(
+                  'Thông báo hệ thống',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...systemNotifications.map(
+                  (notification) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F6BED).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF4F6BED).withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Color(0xFFE9EDFF),
+                          child: Icon(
+                            Icons.campaign_outlined,
+                            color: Color(0xFF4F6BED),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                notification.message,
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Hiệu lực đến ${_formatDate(notification.expiresAt)}',
+                                style: const TextStyle(
+                                  color: Color(0xFF4F6BED),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               if (debts.isNotEmpty) ...[
+                if (systemNotifications.isNotEmpty) const SizedBox(height: 8),
                 const Text(
                   'Công nợ đến hạn',
                   style: TextStyle(fontWeight: FontWeight.bold),
