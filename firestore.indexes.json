@@ -25,6 +25,15 @@
       ]
     },
     {
+      "collectionGroup": "debt_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "debtId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "default_categories",
       "queryScope": "COLLECTION",
       "fields": [

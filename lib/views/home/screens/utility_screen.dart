@@ -7,8 +7,9 @@ import '../../budget/screens/budget_list_screen.dart';
 import '../../debt/screens/debt_list_screen.dart';
 import '../../goal/screens/goal_list_screen.dart';
 import '../../notification/screens/notification_settings_screen.dart';
-import '../../../services/demo_data_service.dart';
+import '../../../models/app_config_model.dart';
 import '../../../services/app_config_service.dart';
+import '../../../utils/input_constraints.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 
 class UtilityScreen extends StatefulWidget {
@@ -21,82 +22,15 @@ class UtilityScreen extends StatefulWidget {
 }
 
 class _UtilityScreenState extends State<UtilityScreen> {
-  final DemoDataService _demoDataService = DemoDataService();
-  bool _isSeedingDemoData = false;
-
-  Future<void> _seedDemoData(BuildContext context) async {
-    if (_isSeedingDemoData) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Tạo dữ liệu demo'),
-        content: const Text(
-          'Ứng dụng sẽ thêm bộ dữ liệu mẫu vào tài khoản hiện tại: ví, giao dịch, danh mục, ngân sách, mục tiêu và hóa đơn định kỳ. Bạn có muốn tiếp tục không?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF06292),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Tạo dữ liệu',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() => _isSeedingDemoData = true);
-    try {
-      await _demoDataService.seedDemoDataForCurrentUser();
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Đã tạo dữ liệu demo hoàn chỉnh cho tài khoản hiện tại.',
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể tạo dữ liệu demo: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSeedingDemoData = false);
-      }
-    }
-  }
-
   Future<void> _showSupport(BuildContext context) async {
-    final config = await AppConfigService().getConfig();
+    AppConfigModel config;
+    try {
+      config = await AppConfigService().getConfig();
+    } catch (_) {
+      config = const AppConfigModel();
+    }
     if (!context.mounted) return;
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -251,6 +185,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   TextFormField(
                     controller: currentController,
                     obscureText: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: const InputDecoration(
                       labelText: 'Mật khẩu hiện tại',
                     ),
@@ -262,6 +198,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   TextFormField(
                     controller: newController,
                     obscureText: true,
+                    inputFormatters: newPasswordInputFormatters(),
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: const InputDecoration(
                       labelText: 'Mật khẩu mới',
                     ),
@@ -281,6 +220,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   TextFormField(
                     controller: confirmController,
                     obscureText: true,
+                    inputFormatters: newPasswordInputFormatters(),
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: const InputDecoration(
                       labelText: 'Xác nhận mật khẩu mới',
                     ),
@@ -594,13 +536,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
               ),
             ),
-          _buildSettingsTile(
-            icon: _isSeedingDemoData ? Icons.hourglass_top : Icons.auto_awesome,
-            title: _isSeedingDemoData
-                ? 'Đang tạo dữ liệu demo...'
-                : 'Tạo dữ liệu demo bán hàng',
-            onTap: () => _seedDemoData(context),
-          ),
           _buildSettingsTile(
             icon: Icons.account_balance_wallet_outlined,
             title: 'Quản lý Ngân sách',

@@ -352,16 +352,6 @@ class _AddRecurringTransactionScreenState
                     children: [
                       IconButton(
                         icon: const Icon(
-                          Icons.help_outline,
-                          color: Colors.black54,
-                        ),
-                        onPressed: () {},
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 16),
-                      IconButton(
-                        icon: const Icon(
                           Icons.home_outlined,
                           color: Colors.black54,
                         ),

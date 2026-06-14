@@ -8,6 +8,7 @@ class GoalContributionModel {
   final double amount;
   final String note;
   final DateTime createdAt;
+  final String type;
 
   GoalContributionModel({
     required this.id,
@@ -17,6 +18,7 @@ class GoalContributionModel {
     required this.amount,
     this.note = '',
     required this.createdAt,
+    this.type = 'deposit',
   });
 
   Map<String, dynamic> toMap() {
@@ -27,6 +29,7 @@ class GoalContributionModel {
       'amount': amount,
       'note': note,
       'createdAt': Timestamp.fromDate(createdAt),
+      'type': type,
     };
   }
 
@@ -39,6 +42,10 @@ class GoalContributionModel {
       amount: (map['amount'] ?? 0).toDouble(),
       note: map['note'] ?? '',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      type:
+          map['type'] ?? ((map['amount'] ?? 0) < 0 ? 'withdrawal' : 'deposit'),
     );
   }
+
+  bool get isWithdrawal => type == 'withdrawal' || amount < 0;
 }

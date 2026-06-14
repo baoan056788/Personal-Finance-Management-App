@@ -179,6 +179,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
+  String _formatError(dynamic e) {
+    String msg = e.toString();
+    if (msg.startsWith('Exception: ')) {
+      msg = msg.substring('Exception: '.length);
+    }
+    return msg;
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Lỗi xảy ra', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Đồng ý',
+              style: TextStyle(color: momoPink, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveTransaction() async {
     final amount = parseCurrencyInput(_amountController.text);
     if (amount == null) {
@@ -332,9 +366,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.redAccent),
-        );
+        _showErrorDialog(context, _formatError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -388,16 +420,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.help_outline,
-                          color: Colors.black54,
-                        ),
-                        onPressed: () {},
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 16),
                       IconButton(
                         icon: const Icon(
                           Icons.home_outlined,

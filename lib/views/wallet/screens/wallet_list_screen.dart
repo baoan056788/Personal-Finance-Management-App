@@ -23,7 +23,9 @@ class _WalletListScreenState extends State<WalletListScreen> {
   }
 
   void _showEditWalletDialog(WalletModel wallet) {
-    final TextEditingController nameController = TextEditingController(text: wallet.name);
+    final TextEditingController nameController = TextEditingController(
+      text: wallet.name,
+    );
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -44,11 +46,21 @@ class _WalletListScreenState extends State<WalletListScreen> {
               onPressed: () async {
                 final newName = nameController.text.trim();
                 if (newName.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tên ví không được để trống'), backgroundColor: Colors.redAccent));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tên ví không được để trống'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
                   return;
                 }
                 if (newName.length > 30) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tên ví tối đa 30 ký tự'), backgroundColor: Colors.redAccent));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tên ví tối đa 30 ký tự'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
                   return;
                 }
                 if (newName != wallet.name) {
@@ -56,7 +68,10 @@ class _WalletListScreenState extends State<WalletListScreen> {
                 }
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
-              child: const Text('Lưu', style: TextStyle(color: Color(0xFFB02A76))),
+              child: const Text(
+                'Lưu',
+                style: TextStyle(color: Color(0xFFB02A76)),
+              ),
             ),
           ],
         );
@@ -70,7 +85,9 @@ class _WalletListScreenState extends State<WalletListScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Xóa ví?'),
-          content: Text('Bạn có chắc chắn muốn xóa ví "${wallet.name}" không? Toàn bộ giao dịch trong ví này cũng sẽ bị xóa.'),
+          content: Text(
+            'Chỉ có thể xóa ví "${wallet.name}" khi số dư bằng 0 và chưa phát sinh giao dịch.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -78,10 +95,23 @@ class _WalletListScreenState extends State<WalletListScreen> {
             ),
             TextButton(
               onPressed: () async {
-                await _walletService.deleteWallet(wallet.id);
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                try {
+                  await _walletService.deleteWallet(wallet.id);
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                } catch (error) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$error'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
               },
-              child: const Text('Xóa', style: TextStyle(color: Colors.redAccent)),
+              child: const Text(
+                'Xóa',
+                style: TextStyle(color: Colors.redAccent),
+              ),
             ),
           ],
         );
@@ -117,34 +147,54 @@ class _WalletListScreenState extends State<WalletListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.account_balance_wallet_outlined, size: 80, color: Colors.grey),
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Bạn chưa có ví nào', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  const Text(
+                    'Bạn chưa có ví nào',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddWalletScreen(),
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Thêm ví mới'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFB02A76),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
             );
           }
 
-          final totalBalance = wallets.fold(0.0, (sum, wallet) => sum + wallet.balance);
+          final totalBalance = wallets.fold(
+            0.0,
+            (sum, wallet) => sum + wallet.balance,
+          );
 
           return Column(
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 32,
+                  horizontal: 24,
+                ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -168,7 +218,10 @@ class _WalletListScreenState extends State<WalletListScreen> {
                           children: [
                             const Text(
                               'Tổng số dư',
-                              style: TextStyle(color: Colors.black54, fontSize: 16),
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 16,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -186,7 +239,8 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                   : () => Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const TransferMoneyScreen(),
+                                        builder: (_) =>
+                                            const TransferMoneyScreen(),
                                       ),
                                     ),
                               icon: const Icon(Icons.swap_horiz),
@@ -216,7 +270,9 @@ class _WalletListScreenState extends State<WalletListScreen> {
 
                     return Card(
                       elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       margin: const EdgeInsets.only(bottom: 16),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
@@ -224,12 +280,18 @@ class _WalletListScreenState extends State<WalletListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => WalletDetailScreen(wallet: wallet),
+                              builder: (_) =>
+                                  WalletDetailScreen(wallet: wallet),
                             ),
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.only(left: 20, right: 8, top: 16, bottom: 20),
+                          padding: const EdgeInsets.only(
+                            left: 20,
+                            right: 8,
+                            top: 16,
+                            bottom: 20,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             gradient: const LinearGradient(
@@ -241,16 +303,21 @@ class _WalletListScreenState extends State<WalletListScreen> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'Tên ví',
-                                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
@@ -267,7 +334,10 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                     ),
                                   ),
                                   PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                                    icon: const Icon(
+                                      Icons.more_vert,
+                                      color: Colors.white,
+                                    ),
                                     onSelected: (value) {
                                       if (value == 'edit') {
                                         _showEditWalletDialog(wallet);
@@ -280,7 +350,11 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                         value: 'edit',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.edit, color: Colors.black54, size: 20),
+                                            Icon(
+                                              Icons.edit,
+                                              color: Colors.black54,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 8),
                                             Text('Đổi tên ví'),
                                           ],
@@ -290,9 +364,18 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                         value: 'delete',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                                            Icon(
+                                              Icons.delete,
+                                              color: Colors.redAccent,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 8),
-                                            Text('Xóa ví', style: TextStyle(color: Colors.redAccent)),
+                                            Text(
+                                              'Xóa ví',
+                                              style: TextStyle(
+                                                color: Colors.redAccent,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -302,18 +385,27 @@ class _WalletListScreenState extends State<WalletListScreen> {
                               ),
                               const SizedBox(height: 8),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       wallet.type,
-                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                   Column(
@@ -321,7 +413,10 @@ class _WalletListScreenState extends State<WalletListScreen> {
                                     children: [
                                       const Text(
                                         'Số dư',
-                                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -350,11 +445,17 @@ class _WalletListScreenState extends State<WalletListScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddWalletScreen()),
+          );
         },
         backgroundColor: const Color(0xFFB02A76),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Thêm ví', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Thêm ví',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

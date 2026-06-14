@@ -11,8 +11,8 @@ class AppConfigModel {
 
   const AppConfigModel({
     this.appName = 'QLTC_N11',
-    this.supportEmail = 'support@finance.app',
-    this.supportPhone = '1800-xxxx',
+    this.supportEmail = 'nhom11ltdd@gmail.com',
+    this.supportPhone = '0972328274',
     this.maxTransactionAmount = 1000000000,
     this.maintenanceMode = false,
     this.registrationEnabled = true,
@@ -25,9 +25,8 @@ class AppConfigModel {
       appName: (map['appName'] as String?)?.trim().isNotEmpty == true
           ? (map['appName'] as String).trim()
           : 'QLTC_N11',
-      supportEmail:
-          (map['supportEmail'] as String?)?.trim() ?? 'support@finance.app',
-      supportPhone: (map['supportPhone'] as String?)?.trim() ?? '1800-xxxx',
+      supportEmail: _parseSupportEmail(map['supportEmail']),
+      supportPhone: _parseSupportPhone(map['supportPhone']),
       maxTransactionAmount:
           (map['maxTransactionAmount'] as num?)?.toDouble() ?? 1000000000,
       maintenanceMode: map['maintenanceMode'] as bool? ?? false,
@@ -52,5 +51,21 @@ class AppConfigModel {
     if (value is DateTime) return value;
     if (value is String) return DateTime.tryParse(value);
     return null;
+  }
+
+  static String _parseSupportEmail(Object? value) {
+    final email = value is String ? value.trim() : '';
+    if (email.isEmpty || email == 'support@finance.app') {
+      return 'nhom11ltdd@gmail.com';
+    }
+    return email;
+  }
+
+  static String _parseSupportPhone(Object? value) {
+    final phone = value is String ? value.trim() : '';
+    if (phone.isEmpty || phone == '18001234' || phone == '1800-xxxx') {
+      return '0972328274';
+    }
+    return phone;
   }
 }

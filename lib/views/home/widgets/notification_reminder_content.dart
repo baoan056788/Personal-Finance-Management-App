@@ -9,12 +9,14 @@ class NotificationReminderContent extends StatelessWidget {
   final List<SystemNotificationModel> systemNotifications;
   final List<DebtModel> debts;
   final List<RecurringTransactionModel> recurring;
+  final bool constrainHeight;
 
   const NotificationReminderContent({
     super.key,
     required this.systemNotifications,
     required this.debts,
     required this.recurring,
+    this.constrainHeight = true,
   });
 
   String _formatMoney(double amount) {
@@ -68,143 +70,142 @@ class NotificationReminderContent extends StatelessWidget {
       );
     }
 
+    final content = SizedBox(
+      width: double.maxFinite,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (systemNotifications.isNotEmpty) ...[
+            const Text(
+              'Thông báo hệ thống',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...systemNotifications.map(
+              (notification) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F6BED).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF4F6BED).withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Color(0xFFE9EDFF),
+                      child: Icon(
+                        Icons.campaign_outlined,
+                        color: Color(0xFF4F6BED),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            notification.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            notification.message,
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Hiệu lực đến ${_formatDate(notification.expiresAt)}',
+                            style: const TextStyle(
+                              color: Color(0xFF4F6BED),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (debts.isNotEmpty) ...[
+            if (systemNotifications.isNotEmpty) const SizedBox(height: 8),
+            const Text(
+              'Công nợ đến hạn',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...debts.map((debt) {
+              final isOverdue = debt.status == 'OVERDUE';
+              return _ReminderCard(
+                icon: debt.type == 'borrowed'
+                    ? Icons.call_received
+                    : Icons.call_made,
+                title: debt.personName,
+                typeLabel: debt.type == 'borrowed'
+                    ? 'Đi vay • Cần trả'
+                    : 'Cho vay • Cần thu',
+                amount: _formatMoney(debt.remainAmount),
+                dueDate: 'Hạn ${_formatDate(debt.dueDate)}',
+                timing: _timingText(debt.dueDate),
+                note: debt.note,
+                color: isOverdue ? Colors.red : Colors.orange,
+              );
+            }),
+          ],
+          if (recurring.isNotEmpty) ...[
+            if (debts.isNotEmpty) const SizedBox(height: 16),
+            const Text(
+              'Giao dịch định kỳ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...recurring.map((transaction) {
+              final isIncome = transaction.type == 'income';
+              final timing = _timingText(transaction.nextDueDate);
+              final isOverdue = timing.startsWith('Quá hạn');
+              return _ReminderCard(
+                icon: isIncome
+                    ? Icons.south_west_rounded
+                    : Icons.north_east_rounded,
+                title: transaction.name,
+                typeLabel: isIncome ? 'Khoản thu định kỳ' : 'Khoản chi định kỳ',
+                amount:
+                    '${isIncome ? '+' : '-'}${_formatMoney(transaction.amount)}',
+                dueDate: 'Hạn ${_formatDate(transaction.nextDueDate)}',
+                timing: timing,
+                note: 'Tần suất: ${_frequencyLabel(transaction.frequency)}',
+                color: isOverdue
+                    ? Colors.red
+                    : (isIncome ? Colors.green : Colors.purple),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+
+    if (!constrainHeight) return content;
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.58,
       ),
-      child: SingleChildScrollView(
-        child: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (systemNotifications.isNotEmpty) ...[
-                const Text(
-                  'Thông báo hệ thống',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...systemNotifications.map(
-                  (notification) => Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4F6BED).withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF4F6BED).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Color(0xFFE9EDFF),
-                          child: Icon(
-                            Icons.campaign_outlined,
-                            color: Color(0xFF4F6BED),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                notification.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                notification.message,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 12,
-                                  height: 1.35,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Hiệu lực đến ${_formatDate(notification.expiresAt)}',
-                                style: const TextStyle(
-                                  color: Color(0xFF4F6BED),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              if (debts.isNotEmpty) ...[
-                if (systemNotifications.isNotEmpty) const SizedBox(height: 8),
-                const Text(
-                  'Công nợ đến hạn',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...debts.map((debt) {
-                  final isOverdue = debt.status == 'OVERDUE';
-                  return _ReminderCard(
-                    icon: debt.type == 'borrowed'
-                        ? Icons.call_received
-                        : Icons.call_made,
-                    title: debt.personName,
-                    typeLabel: debt.type == 'borrowed'
-                        ? 'Đi vay • Cần trả'
-                        : 'Cho vay • Cần thu',
-                    amount: _formatMoney(debt.remainAmount),
-                    dueDate: 'Hạn ${_formatDate(debt.dueDate)}',
-                    timing: _timingText(debt.dueDate),
-                    note: debt.note,
-                    color: isOverdue ? Colors.red : Colors.orange,
-                  );
-                }),
-              ],
-              if (recurring.isNotEmpty) ...[
-                if (debts.isNotEmpty) const SizedBox(height: 16),
-                const Text(
-                  'Giao dịch định kỳ',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...recurring.map((transaction) {
-                  final isIncome = transaction.type == 'income';
-                  final timing = _timingText(transaction.nextDueDate);
-                  final isOverdue = timing.startsWith('Quá hạn');
-                  return _ReminderCard(
-                    icon: isIncome
-                        ? Icons.south_west_rounded
-                        : Icons.north_east_rounded,
-                    title: transaction.name,
-                    typeLabel: isIncome
-                        ? 'Khoản thu định kỳ'
-                        : 'Khoản chi định kỳ',
-                    amount:
-                        '${isIncome ? '+' : '-'}${_formatMoney(transaction.amount)}',
-                    dueDate: 'Hạn ${_formatDate(transaction.nextDueDate)}',
-                    timing: timing,
-                    note: 'Tần suất: ${_frequencyLabel(transaction.frequency)}',
-                    color: isOverdue
-                        ? Colors.red
-                        : (isIncome ? Colors.green : Colors.purple),
-                  );
-                }),
-              ],
-            ],
-          ),
-        ),
-      ),
+      child: SingleChildScrollView(child: content),
     );
   }
 }

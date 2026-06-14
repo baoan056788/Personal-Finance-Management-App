@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../controllers/debt_controller.dart';
-import '../../controllers/recurring_transaction_controller.dart';
 import '../../models/app_nav_item.dart';
-import '../../models/debt_model.dart';
-import '../../models/recurring_transaction_model.dart';
-import '../../services/notification_settings_service.dart';
-import '../../services/system_notification_service.dart';
+import '../../services/notification_center_service.dart';
+import '../notification/screens/notification_center_screen.dart';
 import '../transaction/screens/transaction_menu_screen.dart';
 import '../wallet/screens/wallet_list_screen.dart';
 import 'screens/home_screen.dart';
@@ -14,7 +10,6 @@ import 'screens/report_screen.dart';
 import 'screens/utility_screen.dart';
 import 'widgets/bottom_nav_widget.dart';
 import 'widgets/header_widget.dart';
-import 'widgets/notification_reminder_content.dart';
 
 class HomeView extends StatefulWidget {
   final bool isAdmin;
@@ -29,6 +24,13 @@ class _HomeViewState extends State<HomeView> {
   int currentIndex = 0;
   int _transactionInitialTab = 0;
   bool _isLoadingNotifications = false;
+  int _notificationCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshNotificationCount();
+  }
 
   void _goToTab(int index, {int subTab = 0}) {
     setState(() {
@@ -37,112 +39,31 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  void onTabChanged(int index) => _goToTab(index);
+  void onTabChanged(int index) {
+    _goToTab(index);
+    if (index == 0) _refreshNotificationCount();
+  }
 
-  Future<void> onNotificationPressed() async {
+  Future<void> _refreshNotificationCount() async {
     if (_isLoadingNotifications) return;
     setState(() => _isLoadingNotifications = true);
-
     try {
-      final systemNotifications = await SystemNotificationService()
-          .getActiveNotifications();
-      final settings = await NotificationSettingsService().load();
-      if (!mounted) return;
-
-      final debts = settings.enabled && settings.debtReminders
-          ? await DebtController().getDueReminders(
-              daysAhead: settings.advanceDays,
-            )
-          : <DebtModel>[];
-
-      var upcomingRecurring = <RecurringTransactionModel>[];
-      if (settings.enabled && settings.recurringReminders) {
-        final recurring = await RecurringTransactionController()
-            .getRecurringTransactions()
-            .first;
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final limit = today.add(Duration(days: settings.advanceDays));
-        upcomingRecurring = recurring.where((tx) {
-          final due = DateTime(
-            tx.nextDueDate.year,
-            tx.nextDueDate.month,
-            tx.nextDueDate.day,
-          );
-          return due.isBefore(limit) || due.isAtSameMomentAs(limit);
-        }).toList();
-        upcomingRecurring.sort(
-          (a, b) => a.nextDueDate.compareTo(b.nextDueDate),
-        );
-      }
-
-      if (!mounted) return;
-      if (systemNotifications.isEmpty &&
-          debts.isEmpty &&
-          upcomingRecurring.isEmpty &&
-          !settings.enabled) {
-        await _showNotificationMessage(
-          'Thông báo đang tắt',
-          'Bạn có thể bật lại trong Tiện ích > Thông báo.',
-        );
-        return;
-      }
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.notifications, color: Color(0xFFF06292)),
-              SizedBox(width: 8),
-              Text('Thông báo'),
-            ],
-          ),
-          content: NotificationReminderContent(
-            systemNotifications: systemNotifications,
-            debts: debts,
-            recurring: upcomingRecurring,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'Đóng',
-                style: TextStyle(color: Color(0xFFF06292)),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể tải thông báo: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      final data = await NotificationCenterService().load();
+      if (mounted) setState(() => _notificationCount = data.reminderCount);
+    } catch (_) {
+      // Keep the latest successful badge value when the network is unavailable.
     } finally {
       if (mounted) setState(() => _isLoadingNotifications = false);
     }
   }
 
-  Future<void> _showNotificationMessage(String title, String message) {
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+  Future<void> onNotificationPressed() async {
+    if (_isLoadingNotifications) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationCenterScreen()),
     );
+    await _refreshNotificationCount();
   }
 
   @override
@@ -197,6 +118,8 @@ class _HomeViewState extends State<HomeView> {
         title: currentItem.title,
         showNotification: currentItem.showNotification,
         onNotificationPressed: onNotificationPressed,
+        notificationCount: _notificationCount,
+        isNotificationLoading: _isLoadingNotifications,
       ),
       body: IndexedStack(
         index: currentIndex,

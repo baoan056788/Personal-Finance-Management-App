@@ -5,6 +5,9 @@ import '../../../utils/currency_input_formatter.dart';
 
 import '../../../controllers/debt_controller.dart';
 import '../../../models/debt_model.dart';
+import '../../../models/wallet_model.dart';
+import '../../wallet/services/wallet_service.dart';
+import 'debt_detail_screen.dart';
 
 class DebtListScreen extends StatefulWidget {
   const DebtListScreen({super.key});
@@ -35,6 +38,13 @@ class _DebtListScreenState extends State<DebtListScreen> {
         debt: debt,
         mainColor: _mainColor,
       ),
+    );
+  }
+
+  void _openDebtDetail(DebtModel debt) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DebtDetailScreen(debt: debt)),
     );
   }
 
@@ -215,139 +225,176 @@ class _DebtListScreenState extends State<DebtListScreen> {
     final isBorrowed = debt.type == 'borrowed';
     final dueText = DateFormat('dd/MM/yyyy').format(debt.dueDate);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (isBorrowed ? Colors.orange : Colors.green).withValues(
-                    alpha: 0.12,
+    return InkWell(
+      onTap: () => _openDebtDetail(debt),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (isBorrowed ? Colors.orange : Colors.green)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  borderRadius: BorderRadius.circular(14),
+                  child: Icon(
+                    isBorrowed ? Icons.call_received : Icons.call_made,
+                    color: isBorrowed ? Colors.orange : Colors.green,
+                  ),
                 ),
-                child: Icon(
-                  isBorrowed ? Icons.call_received : Icons.call_made,
-                  color: isBorrowed ? Colors.orange : Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      debt.personName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        debt.personName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(height: 4),
+                      Text(
+                        isBorrowed ? 'Đi vay' : 'Cho vay',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') _showDebtForm(debt: debt);
+                    if (value == 'paid') _openDebtDetail(debt);
+                    if (value == 'delete') _deleteDebt(debt);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Chỉnh sửa'),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isBorrowed ? 'Đi vay' : 'Cho vay',
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 12,
+                    if (!debt.isPaid)
+                      const PopupMenuItem(
+                        value: 'paid',
+                        child: Text('Ghi nhận thanh toán'),
                       ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Xóa', style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') _showDebtForm(debt: debt);
-                  if (value == 'paid') _markAsPaid(debt);
-                  if (value == 'delete') _deleteDebt(debt);
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa')),
-                  if (!debt.isPaid)
-                    const PopupMenuItem(value: 'paid', child: Text('Tất toán')),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Xóa', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  _currencyFormat.format(debt.remainAmount),
-                  style: TextStyle(
-                    color: isBorrowed ? Colors.orange : Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    _currencyFormat.format(debt.remainAmount),
+                    style: TextStyle(
+                      color: isBorrowed ? Colors.orange : Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.event, size: 15, color: Colors.black45),
-              const SizedBox(width: 6),
-              Text(
-                'Hạn: $dueText',
-                style: const TextStyle(color: Colors.black54, fontSize: 12),
-              ),
-            ],
-          ),
-          if (debt.note.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                debt.note,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: debt.amount <= 0
+                    ? 0
+                    : (debt.paidAmount / debt.amount).clamp(0.0, 1.0),
+                minHeight: 7,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  debt.isPaid ? Colors.green : _mainColor,
+                ),
               ),
             ),
+            const SizedBox(height: 7),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Đã thanh toán ${_currencyFormat.format(debt.paidAmount)}',
+                  style: const TextStyle(color: Colors.black45, fontSize: 11),
+                ),
+                const Text(
+                  'Chạm để xem chi tiết',
+                  style: TextStyle(color: Color(0xFFE0248A), fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.event, size: 15, color: Colors.black45),
+                const SizedBox(width: 6),
+                Text(
+                  'Hạn: $dueText',
+                  style: const TextStyle(color: Colors.black54, fontSize: 12),
+                ),
+              ],
+            ),
+            if (debt.note.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  debt.note,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -421,39 +468,6 @@ class _DebtListScreenState extends State<DebtListScreen> {
     }
   }
 
-  Future<void> _markAsPaid(DebtModel debt) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tất toán khoản công nợ?'),
-        content: Text(
-          'Bạn có chắc chắn muốn đánh dấu khoản với "${debt.personName}" là đã tất toán không?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: _mainColor),
-            child: const Text(
-              'Tất toán',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    await _debtController.markAsPaid(debt);
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Đã tất toán khoản công nợ')));
-  }
-
   Future<void> _deleteDebt(DebtModel debt) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -474,7 +488,15 @@ class _DebtListScreenState extends State<DebtListScreen> {
         ],
       ),
     );
-    if (confirmed == true) await _debtController.deleteDebt(debt.id);
+    if (confirmed != true) return;
+    try {
+      await _debtController.deleteDebt(debt.id);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error'), backgroundColor: Colors.redAccent),
+      );
+    }
   }
 }
 
@@ -497,10 +519,12 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _personController;
   late final TextEditingController _amountController;
-  late final TextEditingController _paidController;
   late final TextEditingController _noteController;
   late String _type;
   late DateTime _dueDate;
+  final WalletService _walletService = WalletService();
+  String? _selectedWalletId;
+  bool _updateWalletBalance = true;
   bool _isSaving = false;
 
   @override
@@ -511,9 +535,6 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
     _amountController = TextEditingController(
       text: debt == null ? '' : formatCurrencyInput(debt.amount),
     );
-    _paidController = TextEditingController(
-      text: debt == null ? '0' : formatCurrencyInput(debt.paidAmount),
-    );
     _noteController = TextEditingController(text: debt?.note ?? '');
     _type = debt?.type ?? 'borrowed';
     _dueDate = debt?.dueDate ?? DateTime.now().add(const Duration(days: 7));
@@ -523,7 +544,6 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
   void dispose() {
     _personController.dispose();
     _amountController.dispose();
-    _paidController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -559,7 +579,6 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
     setState(() => _isSaving = true);
     try {
       final amount = _parseMoney(_amountController.text)!;
-      final paid = _parseMoney(_paidController.text) ?? 0;
       final now = DateTime.now();
       final oldDebt = widget.debt;
       final model = DebtModel(
@@ -568,7 +587,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
         type: _type,
         personName: _personController.text.trim(),
         amount: amount,
-        paidAmount: paid,
+        paidAmount: oldDebt?.paidAmount ?? 0,
         dueDate: _dueDate,
         note: _noteController.text.trim(),
         status: oldDebt?.status ?? 'OPEN',
@@ -577,7 +596,11 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
       );
 
       if (oldDebt == null) {
-        await widget.controller.createDebt(model);
+        await widget.controller.createDebt(
+          model,
+          walletId: _selectedWalletId,
+          updateWalletBalance: _updateWalletBalance,
+        );
       } else {
         await widget.controller.updateDebt(model);
       }
@@ -600,6 +623,9 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isEditing = widget.debt != null;
+    final financesLocked =
+        widget.debt?.affectsWallet == true ||
+        (widget.debt?.paidAmount ?? 0) > 0;
 
     return PopScope(
       canPop: !_isSaving,
@@ -650,7 +676,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
                     ),
                   ],
                   selected: {_type},
-                  onSelectionChanged: _isSaving
+                  onSelectionChanged: _isSaving || financesLocked
                       ? null
                       : (value) => setState(() => _type = value.first),
                 ),
@@ -670,7 +696,7 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _amountController,
-                  enabled: !_isSaving,
+                  enabled: !_isSaving && !financesLocked,
                   keyboardType: TextInputType.number,
                   inputFormatters: [CurrencyInputFormatter()],
                   textInputAction: TextInputAction.next,
@@ -687,29 +713,85 @@ class _DebtFormSheetState extends State<_DebtFormSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _paidController,
-                  enabled: !_isSaving,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [CurrencyInputFormatter()],
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Đã thanh toán',
-                    border: OutlineInputBorder(),
+                if (financesLocked) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.lock_outline, color: Colors.orange),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Loại và tổng tiền được khóa vì khoản này đã phát sinh dòng tiền.',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  validator: (value) {
-                    final paid = _parseMoney(value ?? '0');
-                    final amount = _parseMoney(_amountController.text);
-                    if (paid == null || paid < 0) {
-                      return 'Số đã thanh toán không hợp lệ';
-                    }
-                    if (amount != null && paid > amount) {
-                      return 'Số đã thanh toán không được vượt tổng tiền';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
+                if (!isEditing) ...[
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: _updateWalletBalance,
+                    activeThumbColor: widget.mainColor,
+                    title: const Text('Ghi nhận số tiền vào ví'),
+                    subtitle: Text(
+                      _type == 'borrowed'
+                          ? 'Tiền vay sẽ được cộng vào ví đã chọn'
+                          : 'Tiền cho vay sẽ được trừ khỏi ví đã chọn',
+                    ),
+                    onChanged: _isSaving
+                        ? null
+                        : (value) =>
+                              setState(() => _updateWalletBalance = value),
+                  ),
+                  if (_updateWalletBalance) ...[
+                    StreamBuilder<List<WalletModel>>(
+                      stream: _walletService.getWallets(),
+                      builder: (context, snapshot) {
+                        final wallets = snapshot.data ?? const <WalletModel>[];
+                        return DropdownButtonFormField<String>(
+                          initialValue: _selectedWalletId,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: _type == 'borrowed'
+                                ? 'Ví nhận tiền vay'
+                                : 'Ví dùng để cho vay',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(
+                              Icons.account_balance_wallet_outlined,
+                            ),
+                          ),
+                          items: wallets
+                              .map(
+                                (wallet) => DropdownMenuItem(
+                                  value: wallet.id,
+                                  child: Text(
+                                    '${wallet.name} (${formatCurrencyInput(wallet.balance)}đ)',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _isSaving
+                              ? null
+                              : (value) =>
+                                    setState(() => _selectedWalletId = value),
+                          validator: (value) =>
+                              _updateWalletBalance && value == null
+                              ? 'Vui lòng chọn ví'
+                              : null,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ],
                 InkWell(
                   borderRadius: BorderRadius.circular(4),
                   onTap: _isSaving ? null : _pickDate,

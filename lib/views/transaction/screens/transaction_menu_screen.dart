@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +16,7 @@ import '../../wallet/screens/category_management_screen.dart';
 import '../../wallet/screens/add_recurring_transaction_screen.dart';
 import '../../wallet/screens/transfer_money_screen.dart';
 import '../../home/screens/transaction_detail_screen.dart';
+import '../../../utils/recurring_schedule.dart';
 
 class TransactionMenuScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -35,8 +38,11 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
   List<CategoryModel> _categories = [];
   List<WalletModel> _wallets = [];
   final Set<String> _payingIds = {};
-  late Future<List<TransactionModel>> _transactionsFuture;
+  late final Stream<List<TransactionModel>> _transactionsStream;
+  StreamSubscription<List<WalletModel>>? _walletSubscription;
   final Color momoPink = const Color(0xFFE0248A);
+  final Color _pageBackground = const Color(0xFFFFF7FF);
+  final Color _transferPurple = const Color(0xFF7C4DFF);
   final TextEditingController _searchController = TextEditingController();
   String _typeFilter = 'all';
   String _periodFilter = 'all';
@@ -51,17 +57,16 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
-    _transactionsFuture = _transactionService.getAllTransactionsGlobal();
+    _transactionsStream = _transactionService.watchAllTransactionsGlobal();
     _loadCategories();
-    _loadWallets();
+    _watchWallets();
   }
 
   Future<void> _refreshTransactions() async {
-    final future = _transactionService.getAllTransactionsGlobal();
-    if (mounted) {
-      setState(() => _transactionsFuture = future);
-    }
-    await future;
+    await Future.wait([
+      _transactionService.getAllTransactionsGlobal(),
+      _loadCategories(),
+    ]);
   }
 
   @override
@@ -77,14 +82,16 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
     if (mounted) setState(() => _categories = cats);
   }
 
-  Future<void> _loadWallets() async {
-    final wallets = await _walletService.getWallets().first;
-    if (mounted) setState(() => _wallets = wallets);
+  void _watchWallets() {
+    _walletSubscription = _walletService.getWallets().listen((wallets) {
+      if (mounted) setState(() => _wallets = wallets);
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _walletSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -284,20 +291,37 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: _pageBackground,
       body: SafeArea(
         child: Column(
           children: [
             Container(
-              color: Colors.white,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: TabBar(
                 controller: _tabController,
-                labelColor: momoPink,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: momoPink,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.black45,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: momoPink,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
                 tabs: const [
                   Tab(text: 'Tất cả'),
@@ -319,17 +343,22 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddMenu,
         backgroundColor: momoPink,
-        child: const Icon(Icons.add, color: Colors.white, size: 32),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Thêm mới',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
 
   Widget _buildTransactionList({required String filter}) {
-    return FutureBuilder<List<TransactionModel>>(
-      future: _transactionsFuture,
+    return StreamBuilder<List<TransactionModel>>(
+      stream: _transactionsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -343,115 +372,338 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
         } else if (filter == 'recurring') {
           txs = txs.where((tx) => tx.isRecurring).toList();
         }
-        final visibleTxs = _applyFilters(txs);
+        final filteredTxs = _applyFilters(txs);
+        final visibleTxs = _collapseTransferPairs(filteredTxs);
         return RefreshIndicator(
           color: momoPink,
           onRefresh: _refreshTransactions,
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: visibleTxs.isEmpty ? 2 : visibleTxs.length + 1,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+            itemCount: visibleTxs.isEmpty ? 3 : visibleTxs.length + 2,
             itemBuilder: (context, index) {
-              if (index == 0) return _buildFilterPanel(visibleTxs);
+              if (index == 0) return _buildTransactionOverview(visibleTxs);
+              if (index == 1) return _buildFilterPanel(visibleTxs);
               if (visibleTxs.isEmpty) return _buildNoFilterResults();
-              final tx = visibleTxs[index - 1];
-              final bool isIncome = tx.isCredit;
-              final String displayName =
-                  (tx.note.isNotEmpty && tx.note.length < 50)
-                  ? tx.note
-                  : tx.category;
-              return InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TransactionDetailScreen(transaction: tx),
-                  ),
-                ).then((_) => _refreshTransactions()),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      _categoryIcon(tx.categoryId, tx.category),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              DateFormat(
-                                'dd/MM/yyyy • HH:mm',
-                              ).format(tx.createdAt),
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${isIncome ? '+' : '-'}${NumberFormat('#,###').format(tx.amount)}đ',
-                            style: TextStyle(
-                              color: isIncome ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          if (tx.isRecurring)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.purple.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'Định kỳ',
-                                style: TextStyle(
-                                  color: Colors.purple,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return _buildTransactionCard(visibleTxs[index - 2]);
             },
           ),
         );
       },
+    );
+  }
+
+  List<TransactionModel> _collapseTransferPairs(
+    List<TransactionModel> transactions,
+  ) {
+    final result = <TransactionModel>[];
+    final transferIndexes = <String, int>{};
+
+    for (final tx in transactions) {
+      final transferId = tx.transferId;
+      if (!tx.isTransfer || transferId == null || transferId.isEmpty) {
+        result.add(tx);
+        continue;
+      }
+
+      final existingIndex = transferIndexes[transferId];
+      if (existingIndex == null) {
+        transferIndexes[transferId] = result.length;
+        result.add(tx);
+      } else if (!tx.isIncomingTransfer &&
+          result[existingIndex].isIncomingTransfer) {
+        result[existingIndex] = tx;
+      }
+    }
+
+    return result;
+  }
+
+  String _walletName(String walletId) {
+    for (final wallet in _wallets) {
+      if (wallet.id == walletId) return wallet.name;
+    }
+    return 'Ví';
+  }
+
+  String _transactionTitle(TransactionModel tx) {
+    if (tx.isTransfer) {
+      final relatedWallet = tx.relatedWalletName?.trim();
+      if (tx.isIncomingTransfer) {
+        return relatedWallet == null || relatedWallet.isEmpty
+            ? 'Nhận chuyển ví'
+            : 'Nhận từ $relatedWallet';
+      }
+      return relatedWallet == null || relatedWallet.isEmpty
+          ? 'Chuyển sang ví khác'
+          : 'Chuyển đến $relatedWallet';
+    }
+    if (tx.note.isNotEmpty && tx.note.length < 50) return tx.note;
+    return _categoryName(tx);
+  }
+
+  String _transactionSubtitle(TransactionModel tx) {
+    final date = DateFormat('dd/MM/yyyy • HH:mm').format(tx.createdAt);
+    if (!tx.isTransfer) return '${_walletName(tx.walletId)} • $date';
+
+    final currentWallet = _walletName(tx.walletId);
+    final relatedWallet = tx.relatedWalletName?.trim();
+    if (relatedWallet == null || relatedWallet.isEmpty) {
+      return '$currentWallet • $date';
+    }
+    final route = tx.isIncomingTransfer
+        ? '$relatedWallet → $currentWallet'
+        : '$currentWallet → $relatedWallet';
+    return '$route • $date';
+  }
+
+  Color _transactionColor(TransactionModel tx) {
+    if (tx.isTransfer) return _transferPurple;
+    if (tx.isGoalMovement) return const Color(0xFFE0248A);
+    if (tx.isDebtMovement) return const Color(0xFFFF8A3D);
+    return tx.isCredit ? const Color(0xFF35A853) : const Color(0xFFFF5252);
+  }
+
+  Widget _buildTransactionOverview(List<TransactionModel> transactions) {
+    final income = transactions
+        .where((tx) => tx.isIncome)
+        .fold<double>(0, (total, tx) => total + tx.amount);
+    final expense = transactions
+        .where((tx) => tx.isExpense)
+        .fold<double>(0, (total, tx) => total + tx.amount);
+    final transferCount = transactions.where((tx) => tx.isTransfer).length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFB02A76), Color(0xFFE0248A), Color(0xFFF06292)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: momoPink.withValues(alpha: 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tổng quan đang xem',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Chuyển ví không được tính vào thu nhập hoặc chi tiêu',
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _buildOverviewItem(
+                  label: 'Thu nhập',
+                  value: '${NumberFormat('#,###').format(income)}đ',
+                  icon: Icons.south_west_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildOverviewItem(
+                  label: 'Chi tiêu',
+                  value: '${NumberFormat('#,###').format(expense)}đ',
+                  icon: Icons.north_east_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildOverviewItem(
+                  label: 'Chuyển ví',
+                  value: '$transferCount lần',
+                  icon: Icons.swap_horiz_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewItem({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white70, size: 18),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionCard(TransactionModel tx) {
+    final color = _transactionColor(tx);
+    final amountPrefix = tx.isTransfer ? '' : (tx.isCredit ? '+' : '-');
+
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TransactionDetailScreen(transaction: tx),
+        ),
+      ).then((_) => _refreshTransactions()),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF3EAF0)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8C5A76).withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            tx.isInternalMovement
+                ? Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.11),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(
+                      tx.isTransfer
+                          ? Icons.swap_horiz_rounded
+                          : tx.isGoalMovement
+                          ? Icons.savings_outlined
+                          : Icons.handshake_outlined,
+                      color: color,
+                      size: 24,
+                    ),
+                  )
+                : _categoryIcon(
+                    tx.categoryId,
+                    tx.category,
+                    padding: 12,
+                    radius: BorderRadius.circular(15),
+                  ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _transactionTitle(tx),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF332B31),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _transactionSubtitle(tx),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black38, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 118),
+                  child: Text(
+                    '$amountPrefix${NumberFormat('#,###').format(tx.amount)}đ',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (tx.isInternalMovement || tx.isRecurring) ...[
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tx.isTransfer
+                          ? 'Chuyển ví'
+                          : tx.isGoalMovement
+                          ? 'Mục tiêu'
+                          : tx.isDebtMovement
+                          ? 'Công nợ'
+                          : 'Định kỳ',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -485,8 +737,9 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       }
 
       if (query.isNotEmpty) {
-        final haystack = '${tx.note} ${tx.category} ${_categoryName(tx)}'
-            .toLowerCase();
+        final haystack =
+            '${tx.note} ${tx.category} ${_categoryName(tx)} ${tx.relatedWalletName ?? ''}'
+                .toLowerCase();
         if (!haystack.contains(query)) return false;
       }
       return true;
@@ -740,7 +993,11 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
       builder: (context, snapshot) {
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
-        final allBills = snapshot.data ?? [];
+        final allBills = (snapshot.data ?? [])
+            .where(
+              (tx) => isRecurringDateWithinSchedule(tx.nextDueDate, tx.endDate),
+            )
+            .toList();
 
         final pending = allBills.where((tx) {
           if (_payingIds.contains(tx.id)) return false;
@@ -842,8 +1099,8 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
                   ),
                 ),
               ),
-              FutureBuilder<List<TransactionModel>>(
-                future: _transactionsFuture,
+              StreamBuilder<List<TransactionModel>>(
+                stream: _transactionsStream,
                 builder: (context, txSnapshot) {
                   if (txSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -1167,6 +1424,16 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
   }
 
   void _confirmPayment(RecurringTransactionModel recurringTx) async {
+    if (!isRecurringDateWithinSchedule(
+      recurringTx.nextDueDate,
+      recurringTx.endDate,
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Giao dịch định kỳ này đã kết thúc')),
+      );
+      return;
+    }
+
     setState(() => _payingIds.add(recurringTx.id));
     showDialog(
       context: context,
@@ -1178,17 +1445,10 @@ class _TransactionMenuScreenState extends State<TransactionMenuScreen>
           .collection('dummy')
           .doc()
           .id;
-      DateTime nextDate = recurringTx.nextDueDate;
-      final freq = recurringTx.frequency.toLowerCase();
-      if (freq.contains('ngày') || freq.contains('daily')) {
-        nextDate = nextDate.add(const Duration(days: 1));
-      } else if (freq.contains('tuần') || freq.contains('weekly')) {
-        nextDate = nextDate.add(const Duration(days: 7));
-      } else if (freq.contains('tháng') || freq.contains('monthly')) {
-        nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day);
-      } else if (freq.contains('năm') || freq.contains('yearly')) {
-        nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day);
-      }
+      final nextDate = calculateNextRecurringDate(
+        recurringTx.nextDueDate,
+        recurringTx.frequency,
+      );
 
       String categoryNameToSave = recurringTx.name;
       final matchedCat = _findCategory(recurringTx.categoryId, null);

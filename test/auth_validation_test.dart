@@ -14,6 +14,10 @@ void main() {
     test('rejects an empty email', () {
       expect(validateEmailAddress('  '), 'Vui lòng nhập email');
     });
+
+    test('rejects Vietnamese and other non-ASCII email characters', () {
+      expect(validateEmailAddress('tú@example.com'), 'Email không hợp lệ');
+    });
   });
 
   group('passwordResetErrorMessage', () {

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../services/app_config_service.dart';
+import '../../../utils/auth_validation.dart';
+import '../../../utils/input_constraints.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 
@@ -150,8 +152,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _nameController,
                   prefixIcon: Icons.person_outline,
                   maxLength: 50,
-                  keyboardType: TextInputType.name,
+                  keyboardType: TextInputType.text,
                   textCapitalization: TextCapitalization.words,
+                  autocorrect: true,
+                  enableSuggestions: true,
+                  autofillHints: const [AutofillHints.name],
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Vui lòng nhập họ tên';
@@ -175,24 +180,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   maxLength: 100,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập email';
-                    }
-                    String email = value.trim();
-                    if (email.contains(' ')) {
-                      return 'Email không được chứa khoảng trắng';
-                    }
-                    if (email.length > 100) {
-                      return 'Email không được vượt quá 100 ký tự';
-                    }
-                    if (!RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    ).hasMatch(email)) {
-                      return 'Email không hợp lệ';
-                    }
-                    return null;
-                  },
+                  inputFormatters: emailInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofillHints: const [AutofillHints.email],
+                  validator: validateEmailAddress,
                 ),
                 const SizedBox(height: 16),
 
@@ -203,6 +195,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icons.lock_outline,
                   isPassword: _obscurePassword,
                   maxLength: 32,
+                  inputFormatters: newPasswordInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -242,6 +237,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icons.lock_outline,
                   isPassword: _obscureConfirmPassword,
                   maxLength: 32,
+                  inputFormatters: newPasswordInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword

@@ -22,6 +22,12 @@ service cloud.firestore {
       return signedIn() && request.resource.data.userId == request.auth.uid;
     }
 
+    function ownsGoal(goalId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/goals/$(goalId)).data.userId
+          == request.auth.uid;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId)
@@ -36,8 +42,7 @@ service cloud.firestore {
                         'avatarUrl',
                         'updatedAt',
                         'lastLoginAt',
-                        'onboardingCompleted',
-                        'demoDataSeededAt'
+                        'onboardingCompleted'
                       ]);
       allow delete: if false;
 
@@ -69,12 +74,6 @@ service cloud.firestore {
     }
 
     match /goal_contributions/{contributionId} {
-      function ownsGoal(goalId) {
-        return signedIn()
-          && get(/databases/$(database)/documents/goals/$(goalId)).data.userId
-             == request.auth.uid;
-      }
-
       allow read, delete: if ownsGoal(resource.data.goalId);
       allow create: if ownsGoal(request.resource.data.goalId);
       allow update: if ownsGoal(resource.data.goalId)
@@ -88,6 +87,12 @@ service cloud.firestore {
     }
 
     match /debts/{debtId} {
+      allow read, delete: if ownsExistingDocument();
+      allow create: if ownsIncomingDocument();
+      allow update: if ownsExistingDocument() && ownsIncomingDocument();
+    }
+
+    match /debt_payments/{paymentId} {
       allow read, delete: if ownsExistingDocument();
       allow create: if ownsIncomingDocument();
       allow update: if ownsExistingDocument() && ownsIncomingDocument();

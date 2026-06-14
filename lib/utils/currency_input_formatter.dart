@@ -2,9 +2,11 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
-  CurrencyInputFormatter() : _formatter = NumberFormat.decimalPattern('vi_VN');
+  CurrencyInputFormatter({this.maxDigits = 15})
+    : _formatter = NumberFormat.decimalPattern('vi_VN');
 
   final NumberFormat _formatter;
+  final int maxDigits;
 
   @override
   TextEditingValue formatEditUpdate(
@@ -15,6 +17,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
     if (digits.isEmpty) {
       return const TextEditingValue();
     }
+    if (digits.length > maxDigits) return oldValue;
 
     final normalized = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
     final amount = int.tryParse(normalized);

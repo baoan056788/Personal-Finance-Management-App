@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../models/app_config_model.dart';
 import '../../../services/admin_service.dart';
 import '../../../utils/currency_input_formatter.dart';
+import '../../../utils/auth_validation.dart';
+import '../../../utils/input_constraints.dart';
 
 class AdminAppConfigTab extends StatefulWidget {
   const AdminAppConfigTab({super.key});
@@ -175,26 +177,25 @@ class _AppConfigFormState extends State<_AppConfigForm> {
           TextFormField(
             controller: _supportEmailController,
             keyboardType: TextInputType.emailAddress,
+            inputFormatters: emailInputFormatters(),
+            autocorrect: false,
+            enableSuggestions: false,
             decoration: const InputDecoration(
               labelText: 'Email hỗ trợ',
               border: OutlineInputBorder(),
             ),
-            validator: (value) {
-              final email = value?.trim() ?? '';
-              return email.contains('@') ? null : 'Email không hợp lệ';
-            },
+            validator: validateEmailAddress,
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _supportPhoneController,
             keyboardType: TextInputType.phone,
+            inputFormatters: phoneInputFormatters(),
             decoration: const InputDecoration(
               labelText: 'Số điện thoại hỗ trợ',
               border: OutlineInputBorder(),
             ),
-            validator: (value) => (value?.trim().length ?? 0) < 5
-                ? 'Số điện thoại không hợp lệ'
-                : null,
+            validator: validatePhoneNumber,
           ),
           const SizedBox(height: 22),
           const _SectionTitle(
