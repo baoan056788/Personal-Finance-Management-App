@@ -8,7 +8,8 @@ class CategoryManagementScreen extends StatefulWidget {
   const CategoryManagementScreen({super.key});
 
   @override
-  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
+  State<CategoryManagementScreen> createState() =>
+      _CategoryManagementScreenState();
 }
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
@@ -34,7 +35,10 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
   // Parse icon code point string to IconData
   IconData _parseIcon(String iconCode) {
     try {
-      return IconData(int.parse(iconCode, radix: 16), fontFamily: 'MaterialIcons');
+      return IconData(
+        int.parse(iconCode, radix: 16),
+        fontFamily: 'MaterialIcons',
+      );
     } catch (e) {
       return Icons.category;
     }
@@ -53,16 +57,17 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         ),
         title: const Text(
           'Quản lý danh mục',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.support_agent, color: Colors.black87),
-            onPressed: () {},
-          ),
-          IconButton(
             icon: const Icon(Icons.home, color: Colors.black87),
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+            onPressed: () =>
+                Navigator.popUntil(context, (route) => route.isFirst),
           ),
         ],
       ),
@@ -81,7 +86,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: _isExpenseTab ? const Color(0xFFB2006A) : Colors.transparent,
+                            color: _isExpenseTab
+                                ? const Color(0xFFB2006A)
+                                : Colors.transparent,
                             width: 3,
                           ),
                         ),
@@ -90,13 +97,17 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                         children: [
                           Icon(
                             Icons.trending_up,
-                            color: _isExpenseTab ? const Color(0xFFB2006A) : Colors.grey,
+                            color: _isExpenseTab
+                                ? const Color(0xFFB2006A)
+                                : Colors.grey,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Chi tiêu',
                             style: TextStyle(
-                              color: _isExpenseTab ? const Color(0xFFB2006A) : Colors.grey,
+                              color: _isExpenseTab
+                                  ? const Color(0xFFB2006A)
+                                  : Colors.grey,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -113,7 +124,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: !_isExpenseTab ? const Color(0xFFB2006A) : Colors.transparent,
+                            color: !_isExpenseTab
+                                ? const Color(0xFFB2006A)
+                                : Colors.transparent,
                             width: 3,
                           ),
                         ),
@@ -122,13 +135,17 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                         children: [
                           Icon(
                             Icons.trending_down,
-                            color: !_isExpenseTab ? const Color(0xFFB2006A) : Colors.grey,
+                            color: !_isExpenseTab
+                                ? const Color(0xFFB2006A)
+                                : Colors.grey,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Thu nhập',
                             style: TextStyle(
-                              color: !_isExpenseTab ? const Color(0xFFB2006A) : Colors.grey,
+                              color: !_isExpenseTab
+                                  ? const Color(0xFFB2006A)
+                                  : Colors.grey,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -167,7 +184,11 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.add_circle, color: Color(0xFFB2006A), size: 28),
+                        const Icon(
+                          Icons.add_circle,
+                          color: Color(0xFFB2006A),
+                          size: 28,
+                        ),
                         const SizedBox(width: 12),
                         const Text(
                           'Danh mục mới',
@@ -189,10 +210,14 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
           // Categories Grid
           Expanded(
             child: StreamBuilder<List<CategoryModel>>(
-              stream: _categoryController.getCategories(_isExpenseTab ? 'expense' : 'income'),
+              stream: _categoryController.getCategories(
+                _isExpenseTab ? 'expense' : 'income',
+              ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFFB2006A)));
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFB2006A)),
+                  );
                 }
                 if (snapshot.hasError) {
                   return Center(child: Text('Lỗi: ${snapshot.error}'));
@@ -202,12 +227,18 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
 
                 if (categories.isEmpty) {
                   return const Center(
-                    child: Text('Chưa có danh mục nào', style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'Chưa có danh mục nào',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   );
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 1,
@@ -222,7 +253,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EditCategoryScreen(category: category),
+                            builder: (context) =>
+                                EditCategoryScreen(category: category),
                           ),
                         );
                       },
@@ -244,7 +276,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _parseColor(category.colorHex).withValues(alpha: 0.1),
+                                color: _parseColor(
+                                  category.colorHex,
+                                ).withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(

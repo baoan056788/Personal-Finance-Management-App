@@ -7,11 +7,19 @@ class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  State<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final TransactionService _transactionService = TransactionService();
+  late final Stream<List<TransactionModel>> _transactionsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _transactionsStream = _transactionService.watchAllTransactionsGlobal();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,18 +28,24 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Lịch sử giao dịch', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Lịch sử giao dịch',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
-      body: FutureBuilder<List<TransactionModel>>(
-        future: _transactionService.getAllTransactionsGlobal(),
+      body: StreamBuilder<List<TransactionModel>>(
+        stream: _transactionsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
-              child: Text('Chưa có giao dịch nào.', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Chưa có giao dịch nào.',
+                style: TextStyle(color: Colors.grey),
+              ),
             );
           }
 
@@ -44,8 +58,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               final tx = transactions[index];
               final isIncome = tx.isCredit;
               final sign = isIncome ? '+' : '-';
-              final amountStr = '$sign${NumberFormat('#,###').format(tx.amount)}đ';
-              final dateStr = DateFormat('dd/MM/yyyy • HH:mm').format(tx.createdAt);
+              final amountStr =
+                  '$sign${NumberFormat('#,###').format(tx.amount)}đ';
+              final dateStr = DateFormat(
+                'dd/MM/yyyy • HH:mm',
+              ).format(tx.createdAt);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -63,20 +80,44 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.check_circle, color: isIncome ? Colors.green : Colors.red, size: 24),
+                      child: Icon(
+                        Icons.check_circle,
+                        color: isIncome ? Colors.green : Colors.red,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(tx.note.isNotEmpty ? tx.note : tx.category, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          Text(
+                            tx.note.isNotEmpty ? tx.note : tx.category,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text(dateStr, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    Text(amountStr, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    Text(
+                      amountStr,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
                   ],
                 ),
               );

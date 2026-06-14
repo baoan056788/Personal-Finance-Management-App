@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,8 +11,11 @@ import 'firebase_options.dart';
 import 'models/app_config_model.dart';
 import 'services/app_config_service.dart';
 import 'views/auth/screens/login_screen.dart';
+import 'views/auth/screens/create_profile_screen.dart';
 import 'views/home/home_view.dart';
+import 'views/wallet/screens/create_wallet_screen.dart';
 import 'services/admin_access_service.dart';
+import 'utils/onboarding_flow.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -188,8 +192,57 @@ class _AccountGateState extends State<AccountGate> {
         if (config.maintenanceMode && !_isAdmin) {
           return MaintenanceScreen(config: config);
         }
-        return HomeView(isAdmin: _isAdmin);
+        return _buildAccountContent();
       },
+    );
+  }
+
+  Widget _buildAccountContent() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const LoginScreen();
+
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+    final walletsRef = userRef.collection('wallets').limit(1);
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: userRef.snapshots(),
+      builder: (context, profileSnapshot) {
+        if (!profileSnapshot.hasData) return _buildLoadingScreen();
+
+        final profile =
+            profileSnapshot.data!.data() ?? const <String, dynamic>{};
+        final profileCompleted = profile['birthday'] is Timestamp;
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: walletsRef.snapshots(),
+          builder: (context, walletSnapshot) {
+            if (!walletSnapshot.hasData) return _buildLoadingScreen();
+
+            final step = resolveOnboardingStep(
+              isAdmin: _isAdmin,
+              hasWallet: walletSnapshot.data!.docs.isNotEmpty,
+              profileCompleted: profileCompleted,
+            );
+
+            switch (step) {
+              case OnboardingStep.profile:
+                return const CreateProfileScreen();
+              case OnboardingStep.wallet:
+                return const CreateWalletScreen();
+              case OnboardingStep.completed:
+                return HomeView(isAdmin: _isAdmin);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator(color: Color(0xFFB02A76))),
     );
   }
 }

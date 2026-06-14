@@ -14,7 +14,10 @@ class GoalSummaryWidget extends StatefulWidget {
 
 class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
   final GoalController _goalController = GoalController();
-  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+  final NumberFormat _currencyFormat = NumberFormat.currency(
+    locale: 'vi_VN',
+    symbol: 'đ',
+  );
   bool _isExpanded = false;
 
   void _sortGoals(List<GoalModel> goals) {
@@ -41,7 +44,9 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
         final goals = snapshot.data!;
         _sortGoals(goals);
 
-        final displayGoals = _isExpanded ? goals.take(3).toList() : goals.take(1).toList();
+        final displayGoals = _isExpanded
+            ? goals.take(3).toList()
+            : goals.take(1).toList();
         final hasMore = goals.length > 1;
 
         return Container(
@@ -72,22 +77,39 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
                             color: const Color(0xFFC2185B).withAlpha(20),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.savings_rounded, color: Color(0xFFC2185B), size: 20),
+                          child: const Icon(
+                            Icons.savings_rounded,
+                            color: Color(0xFFC2185B),
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Text(
                           'Mục tiêu tiết kiệm',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ],
                     ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalListScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GoalListScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Xem tất cả',
-                        style: TextStyle(color: Color(0xFFC2185B), fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                          color: Color(0xFFC2185B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -97,7 +119,9 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 child: Column(
-                  children: displayGoals.map((goal) => _buildGoalItem(goal)).toList(),
+                  children: displayGoals
+                      .map((goal) => _buildGoalItem(goal))
+                      .toList(),
                 ),
               ),
               if (hasMore)
@@ -108,17 +132,30 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       border: Border(top: BorderSide(color: Colors.grey[100]!)),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(24),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_isExpanded ? 'Thu gọn' : 'Xem thêm', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                        Icon(_isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: Colors.grey),
+                        Text(
+                          _isExpanded ? 'Thu gọn' : 'Xem thêm',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(
+                          _isExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: Colors.grey,
+                        ),
                       ],
                     ),
                   ),
-                )
+                ),
             ],
           ),
         );
@@ -128,9 +165,17 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
 
   Widget _buildGoalItem(GoalModel goal) {
     Color mainColor = Color(int.parse(goal.colorHex, radix: 16));
-    
+    final completed = goal.currentAmount >= goal.targetAmount;
+    final exceededAmount = (goal.currentAmount - goal.targetAmount).clamp(
+      0.0,
+      double.infinity,
+    );
+
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GoalDetailScreen(goal: goal))),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => GoalDetailScreen(goal: goal)),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         child: Column(
@@ -138,13 +183,17 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
             Row(
               children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: mainColor.withAlpha(20),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
-                    IconData(int.parse(goal.iconCode, radix: 16), fontFamily: 'MaterialIcons'),
+                    IconData(
+                      int.parse(goal.iconCode, radix: 16),
+                      fontFamily: 'MaterialIcons',
+                    ),
                     color: mainColor,
                     size: 24,
                   ),
@@ -160,18 +209,44 @@ class _GoalSummaryWidgetState extends State<GoalSummaryWidget> {
                           Expanded(
                             child: Text(
                               goal.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text('${(goal.progressPercent * 100).toStringAsFixed(0)}%', style: TextStyle(color: mainColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(
+                            completed
+                                ? 'Đã đạt'
+                                : '${(goal.progressPercent * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              color: completed
+                                  ? const Color(0xFF159447)
+                                  : mainColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text('${_currencyFormat.format(goal.currentAmount)} / ${_currencyFormat.format(goal.targetAmount)}', style: const TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text(
+                        completed && exceededAmount > 0
+                            ? 'Vượt ${_currencyFormat.format(exceededAmount)}'
+                            : '${_currencyFormat.format(goal.currentAmount)} / ${_currencyFormat.format(goal.targetAmount)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
             const SizedBox(height: 12),

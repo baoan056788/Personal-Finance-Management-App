@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/app_config_model.dart';
 import '../../../services/app_config_service.dart';
 import '../../../utils/auth_validation.dart';
+import '../../../utils/input_constraints.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../widgets/custom_button.dart';
@@ -260,6 +261,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   maxLength: 100,
+                  inputFormatters: emailInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofillHints: const [AutofillHints.email],
                   validator: (value) {
                     return validateEmailAddress(value);
                   },

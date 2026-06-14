@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/system_default_category_model.dart';
 import '../../../services/admin_service.dart';
 import '../../../utils/category_name_normalizer.dart';
+import '../../../utils/input_constraints.dart';
 
 class AdminDefaultCategoriesTab extends StatefulWidget {
   const AdminDefaultCategoriesTab({super.key});
@@ -356,6 +357,7 @@ class _CategoryEditorSheetState extends State<_CategoryEditorSheet> {
               TextFormField(
                 controller: _orderController,
                 keyboardType: TextInputType.number,
+                inputFormatters: integerInputFormatters(maxLength: 3),
                 decoration: const InputDecoration(
                   labelText: 'Thứ tự hiển thị',
                   border: OutlineInputBorder(),

@@ -20,10 +20,12 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
   final CategoryController _categoryController = CategoryController();
 
   List<CategoryModel> _categories = [];
+  late final Stream<List<TransactionModel>> _transactionsStream;
 
   @override
   void initState() {
     super.initState();
+    _transactionsStream = _transactionService.watchAllTransactionsGlobal();
     _loadCategories();
   }
 
@@ -34,7 +36,10 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
 
   CategoryModel? _findCategory(String? id, String? name) {
     String? targetId = id;
-    if ((targetId == null || targetId.isEmpty) && name != null && !name.contains(' ') && name.length > 15) {
+    if ((targetId == null || targetId.isEmpty) &&
+        name != null &&
+        !name.contains(' ') &&
+        name.length > 15) {
       targetId = name;
     }
 
@@ -48,13 +53,25 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
       try {
         return _categories.firstWhere((c) => c.name.toLowerCase().trim() == lc);
       } catch (_) {}
-      
+
       try {
         return _categories.firstWhere((c) {
           final cName = c.name.toLowerCase();
           if (lc.contains(cName) || cName.contains(lc)) return true;
-          if (cName.contains("ăn") && (lc.contains("tra") || lc.contains("sua") || lc.contains("com") || lc.contains("food"))) return true;
-          if ((cName.contains("hóa đơn") || cName.contains("bill")) && (lc.contains("nước") || lc.contains("điện") || lc.contains("wifi") || lc.contains("water"))) return true;
+          if (cName.contains("ăn") &&
+              (lc.contains("tra") ||
+                  lc.contains("sua") ||
+                  lc.contains("com") ||
+                  lc.contains("food"))) {
+            return true;
+          }
+          if ((cName.contains("hóa đơn") || cName.contains("bill")) &&
+              (lc.contains("nước") ||
+                  lc.contains("điện") ||
+                  lc.contains("wifi") ||
+                  lc.contains("water"))) {
+            return true;
+          }
           return false;
         });
       } catch (_) {}
@@ -62,7 +79,11 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
     return null;
   }
 
-  Widget _categoryIconWidget(String? catId, String? catName, {bool isIncome = false}) {
+  Widget _categoryIconWidget(
+    String? catId,
+    String? catName, {
+    bool isIncome = false,
+  }) {
     final cat = _findCategory(catId, catName);
     Color bg, iconColor;
     IconData icon;
@@ -72,8 +93,10 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
         final hex = cat.colorHex.replaceFirst('#', '');
         iconColor = Color(int.parse(hex, radix: 16));
         bg = iconColor.withValues(alpha: 0.12);
-        icon = IconData(int.parse(cat.iconCode, radix: 16),
-            fontFamily: 'MaterialIcons');
+        icon = IconData(
+          int.parse(cat.iconCode, radix: 16),
+          fontFamily: 'MaterialIcons',
+        );
       } catch (_) {
         iconColor = isIncome ? Colors.green : const Color(0xFFE0248A);
         bg = iconColor.withValues(alpha: 0.12);
@@ -82,19 +105,29 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
     } else {
       // Robust fallback for milk tea / water
       if (catName?.toLowerCase().contains("tra sua") ?? false) {
-          final fallback = _findCategory(null, "Ăn uống");
-          if (fallback != null) return _categoryIconWidget(fallback.id, fallback.name, isIncome: isIncome);
+        final fallback = _findCategory(null, "Ăn uống");
+        if (fallback != null) {
+          return _categoryIconWidget(
+            fallback.id,
+            fallback.name,
+            isIncome: isIncome,
+          );
+        }
       }
       if (catName?.toLowerCase().contains("tien nuoc") ?? false) {
-          final fallback = _findCategory(null, "Hóa đơn");
-          if (fallback != null) return _categoryIconWidget(fallback.id, fallback.name, isIncome: isIncome);
+        final fallback = _findCategory(null, "Hóa đơn");
+        if (fallback != null) {
+          return _categoryIconWidget(
+            fallback.id,
+            fallback.name,
+            isIncome: isIncome,
+          );
+        }
       }
 
       iconColor = isIncome ? Colors.green : const Color(0xFFE0248A);
       bg = iconColor.withValues(alpha: 0.12);
-      icon = isIncome
-          ? Icons.account_balance_wallet
-          : Icons.attach_money;
+      icon = isIncome ? Icons.account_balance_wallet : Icons.attach_money;
     }
 
     return Container(
@@ -144,23 +177,25 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
             ],
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<TransactionModel>>(
-            future: _transactionService.getAllTransactionsGlobal(),
+          StreamBuilder<List<TransactionModel>>(
+            stream: _transactionsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
                   padding: EdgeInsets.all(16),
                   child: Center(
-                      child:
-                          CircularProgressIndicator(strokeWidth: 2)),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 );
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(
-                    child: Text('Chưa có giao dịch nào',
-                        style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'Chưa có giao dịch nào',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                 );
               }
@@ -171,18 +206,32 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
                 children: txs.map((tx) {
                   final bool isIncome = tx.isCredit;
                   final cat = _findCategory(tx.categoryId, tx.category);
-                  final String realCategoryName = cat?.name ?? (tx.category.length > 15 ? "Khác" : tx.category);
-                  final String displayName = (tx.note.isNotEmpty && tx.note.length < 50) ? tx.note : realCategoryName;
+                  final String realCategoryName =
+                      cat?.name ??
+                      (tx.category.length > 15 ? "Khác" : tx.category);
+                  final String displayName =
+                      (tx.note.isNotEmpty && tx.note.length < 50)
+                      ? tx.note
+                      : realCategoryName;
 
                   return InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TransactionDetailScreen(transaction: tx))).then((_) => setState(() {})),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TransactionDetailScreen(transaction: tx),
+                      ),
+                    ).then((_) => setState(() {})),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         children: [
-                          _categoryIconWidget(tx.categoryId, tx.category,
-                              isIncome: isIncome),
+                          _categoryIconWidget(
+                            tx.categoryId,
+                            tx.category,
+                            isIncome: isIncome,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -191,16 +240,20 @@ class _RecentTransactionsWidgetState extends State<RecentTransactionsWidget> {
                                 Text(
                                   displayName,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  DateFormat('dd/MM/yyyy • HH:mm')
-                                      .format(tx.createdAt),
+                                  DateFormat(
+                                    'dd/MM/yyyy • HH:mm',
+                                  ).format(tx.createdAt),
                                   style: const TextStyle(
-                                      color: Colors.grey, fontSize: 12),
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),

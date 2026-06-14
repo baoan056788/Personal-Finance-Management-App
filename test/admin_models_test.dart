@@ -55,9 +55,21 @@ void main() {
     final config = AppConfigModel.fromMap(null);
 
     expect(config.appName, 'QLTC_N11');
+    expect(config.supportEmail, 'nhom11ltdd@gmail.com');
+    expect(config.supportPhone, '0972328274');
     expect(config.registrationEnabled, isTrue);
     expect(config.maintenanceMode, isFalse);
     expect(config.maxTransactionAmount, greaterThan(0));
+  });
+
+  test('AppConfigModel upgrades legacy support contacts', () {
+    final config = AppConfigModel.fromMap({
+      'supportEmail': 'support@finance.app',
+      'supportPhone': '1800-xxxx',
+    });
+
+    expect(config.supportEmail, 'nhom11ltdd@gmail.com');
+    expect(config.supportPhone, '0972328274');
   });
 
   test('SystemNotificationModel detects active publication', () {
@@ -87,6 +99,32 @@ void main() {
     expect(transfer.isTransfer, isTrue);
     expect(transfer.isIncomingTransfer, isTrue);
     expect(transfer.isCredit, isTrue);
+  });
+
+  test('wallet transfers affect wallet balances but not income reports', () {
+    final incoming = TransactionModel(
+      id: 'transfer-in',
+      amount: 250000,
+      type: 'transfer',
+      category: 'Nhận tiền',
+      note: '',
+      createdAt: DateTime(2026, 6, 14),
+      transferDirection: 'in',
+    );
+    final outgoing = TransactionModel(
+      id: 'transfer-out',
+      amount: 250000,
+      type: 'transfer',
+      category: 'Chuyển tiền',
+      note: '',
+      createdAt: DateTime(2026, 6, 14),
+      transferDirection: 'out',
+    );
+
+    expect(incoming.walletBalanceImpact, 250000);
+    expect(outgoing.walletBalanceImpact, -250000);
+    expect(incoming.reportImpact, 0);
+    expect(outgoing.reportImpact, 0);
   });
 
   test('normalizes Vietnamese category names for duplicate detection', () {

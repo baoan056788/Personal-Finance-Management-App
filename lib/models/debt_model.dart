@@ -12,6 +12,9 @@ class DebtModel {
   final String status; // OPEN, DUE_SOON, OVERDUE, PAID
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool affectsWallet;
+  final String? initialWalletId;
+  final String? initialTransactionId;
 
   DebtModel({
     required this.id,
@@ -25,6 +28,9 @@ class DebtModel {
     this.status = 'OPEN',
     required this.createdAt,
     required this.updatedAt,
+    this.affectsWallet = false,
+    this.initialWalletId,
+    this.initialTransactionId,
   });
 
   double get remainAmount {
@@ -48,6 +54,10 @@ class DebtModel {
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'affectsWallet': affectsWallet,
+      if (initialWalletId != null) 'initialWalletId': initialWalletId,
+      if (initialTransactionId != null)
+        'initialTransactionId': initialTransactionId,
     };
   }
 
@@ -64,6 +74,9 @@ class DebtModel {
       status: map['status'] ?? 'OPEN',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      affectsWallet: map['affectsWallet'] ?? false,
+      initialWalletId: map['initialWalletId'],
+      initialTransactionId: map['initialTransactionId'],
     );
   }
 
@@ -79,6 +92,9 @@ class DebtModel {
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? affectsWallet,
+    String? initialWalletId,
+    String? initialTransactionId,
   }) {
     return DebtModel(
       id: id ?? this.id,
@@ -92,6 +108,9 @@ class DebtModel {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      affectsWallet: affectsWallet ?? this.affectsWallet,
+      initialWalletId: initialWalletId ?? this.initialWalletId,
+      initialTransactionId: initialTransactionId ?? this.initialTransactionId,
     );
   }
 }

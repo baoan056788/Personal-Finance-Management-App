@@ -4,6 +4,7 @@ import '../../../models/budget_model.dart';
 import '../../../models/category_model.dart';
 import '../../../controllers/budget_controller.dart';
 import '../../../controllers/category_controller.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 class EditBudgetScreen extends StatefulWidget {
   final BudgetModel budget;
@@ -29,18 +30,14 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   bool _isLoading = false;
   final Color momoPink = const Color(0xFFE91E63);
 
-  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '');
-  
   @override
   void initState() {
     super.initState();
-    _amountController.addListener(_formatCurrency);
-    
     // Initialize with existing budget data
     _nameController.text = widget.budget.name;
     final String amountStr = widget.budget.limitAmount.toInt().toString();
     _amountController.value = TextEditingValue(
-      text: _currencyFormat.format(int.parse(amountStr)).trim(),
+      text: formatCurrencyInput(int.parse(amountStr)),
     );
     _noteController.text = widget.budget.note;
     _periodType = widget.budget.periodType;
@@ -57,22 +54,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     }
   }
   
-  void _formatCurrency() {
-    String text = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (text.isNotEmpty) {
-      final formatted = _currencyFormat.format(int.parse(text)).trim();
-      if (_amountController.text != formatted) {
-        _amountController.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length),
-        );
-      }
-    }
-  }
-
   @override
   void dispose() {
-    _amountController.removeListener(_formatCurrency);
     _amountController.dispose();
     _nameController.dispose();
     _noteController.dispose();
@@ -304,6 +287,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                         child: TextField(
                           controller: _amountController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [CurrencyInputFormatter()],
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black87),
                           decoration: InputDecoration(

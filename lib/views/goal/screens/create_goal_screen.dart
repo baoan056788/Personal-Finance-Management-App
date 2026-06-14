@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import '../../../models/goal_model.dart';
 import '../../../controllers/goal_controller.dart';
+import '../../../utils/currency_input_formatter.dart';
 
 class CreateGoalScreen extends StatefulWidget {
   final GoalModel? editGoal;
@@ -350,17 +351,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                       hintText: '10.000.000',
                       icon: Icons.monetization_on_rounded,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [CurrencyInputFormatter()],
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _selectedColor),
-                      onChanged: (value) {
-                        String clean = value.replaceAll(RegExp(r'[^0-9]'), '');
-                        if (clean.isNotEmpty) {
-                          String formatted = NumberFormat.decimalPattern('vi_VN').format(int.parse(clean));
-                          _amountController.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(offset: formatted.length),
-                          );
-                        }
-                      },
                       validator: (val) {
                         if (val == null || val.isEmpty) return 'Vui lòng nhập số tiền';
                         if (double.tryParse(val.replaceAll(RegExp(r'[^0-9]'), '')) == null || double.parse(val.replaceAll(RegExp(r'[^0-9]'), '')) <= 0) return 'Số tiền phải lớn hơn 0';

@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../utils/auth_validation.dart';
+import '../../../utils/input_constraints.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final String initialEmail;
@@ -52,19 +52,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isSending = true);
     try {
-
       // Remove setLanguageCode('vi') as it might cause issues if the localized template is missing or invalid in Firebase Console
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã gửi yêu cầu. Vui lòng kiểm tra hộp thư đến và Thư rác (Spam).'),
+          content: Text(
+            'Đã gửi yêu cầu. Vui lòng kiểm tra hộp thư đến và Thư rác (Spam).',
+          ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       setState(() {
         _submittedEmail = email;
         _emailSent = true;
@@ -94,9 +95,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Lỗi: ${e.toString()}',
-          ),
+          content: Text('Lỗi: ${e.toString()}'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
@@ -180,6 +179,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.email],
               maxLength: 100,
+              inputFormatters: emailInputFormatters(),
               autocorrect: false,
               enableSuggestions: false,
               decoration: const InputDecoration(

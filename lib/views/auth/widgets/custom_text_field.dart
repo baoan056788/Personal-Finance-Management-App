@@ -13,6 +13,9 @@ class CustomTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final TextCapitalization textCapitalization;
   final List<TextInputFormatter>? inputFormatters;
+  final bool autocorrect;
+  final bool enableSuggestions;
+  final Iterable<String>? autofillHints;
 
   const CustomTextField({
     super.key,
@@ -27,6 +30,9 @@ class CustomTextField extends StatelessWidget {
     this.suffixIcon,
     this.textCapitalization = TextCapitalization.none,
     this.inputFormatters,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.autofillHints,
   });
 
   @override
@@ -41,6 +47,9 @@ class CustomTextField extends StatelessWidget {
         validator: validator,
         maxLength: maxLength,
         inputFormatters: inputFormatters,
+        autocorrect: !isPassword && autocorrect,
+        enableSuggestions: !isPassword && enableSuggestions,
+        autofillHints: autofillHints,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,

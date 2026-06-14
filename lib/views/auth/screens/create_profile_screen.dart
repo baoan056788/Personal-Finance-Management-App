@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../wallet/screens/create_wallet_screen.dart';
+import '../../../utils/auth_validation.dart';
+import '../../../utils/input_constraints.dart';
 
 class CreateProfileScreen extends StatefulWidget {
   final bool isEditing;
@@ -156,10 +158,6 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         'avatarUrl': avatarUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      if (!widget.isEditing) {
-        profileData['createdAt'] = FieldValue.serverTimestamp();
-      }
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -175,9 +173,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
         );
         Navigator.pop(context);
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateWalletScreen()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hồ sơ đã hoàn tất. Hãy thiết lập ví đầu tiên.'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
@@ -221,6 +221,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     String? Function(String?)? validator,
     bool readOnly = false,
     VoidCallback? onTap,
+    bool autocorrect = true,
+    bool enableSuggestions = true,
+    Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,6 +250,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             readOnly: readOnly,
             onTap: onTap,
             keyboardType: keyboardType,
+            autocorrect: autocorrect,
+            enableSuggestions: enableSuggestions,
+            autofillHints: autofillHints,
+            inputFormatters: inputFormatters,
+            maxLength: maxLength,
             textCapitalization:
                 keyboardType == TextInputType.emailAddress ||
                     keyboardType == TextInputType.phone ||
@@ -409,6 +419,11 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               label: 'HỌ VÀ TÊN',
                               hint: 'Nhập họ và tên',
                               controller: _fullNameController,
+                              maxLength: 50,
+                              keyboardType: TextInputType.text,
+                              autocorrect: true,
+                              enableSuggestions: true,
+                              autofillHints: const [AutofillHints.name],
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Vui lòng nhập họ tên';
@@ -416,6 +431,9 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                                 String name = value.trim();
                                 if (name.length < 2) {
                                   return 'Họ tên phải có ít nhất 2 ký tự';
+                                }
+                                if (name.length > 50) {
+                                  return 'Họ tên không được vượt quá 50 ký tự';
                                 }
                                 if (RegExp(r'^[0-9]+$').hasMatch(name)) {
                                   return 'Họ tên không được chỉ chứa chữ số';
@@ -489,6 +507,10 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                               hint: 'example@gmail.com',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              autofillHints: const [AutofillHints.email],
+                              inputFormatters: emailInputFormatters(),
                               readOnly: widget.isEditing,
                               trailingIcon: widget.isEditing
                                   ? const Tooltip(
@@ -499,17 +521,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                                       ),
                                     )
                                   : null,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Vui lòng nhập email';
-                                }
-                                if (!RegExp(
-                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                                ).hasMatch(value.trim())) {
-                                  return 'Email không hợp lệ';
-                                }
-                                return null;
-                              },
+                              validator: validateEmailAddress,
                             ),
                             const SizedBox(height: 40),
                             Container(

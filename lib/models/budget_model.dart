@@ -1,5 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+DateTime _startOfDay(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+DateTime _endOfDay(DateTime value) {
+  return DateTime(
+    value.year,
+    value.month,
+    value.day + 1,
+  ).subtract(const Duration(microseconds: 1));
+}
+
 class BudgetModel {
   final String id;
   final String userId;
@@ -69,8 +81,12 @@ class BudgetModel {
       spentAmount: (map['spentAmount'] ?? 0.0).toDouble(),
       remainAmount: (map['remainAmount'] ?? 0.0).toDouble(),
       progressPercent: (map['progressPercent'] ?? 0.0).toDouble(),
-      startDate: (map['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      endDate: (map['endDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      startDate: _startOfDay(
+        (map['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      ),
+      endDate: _endOfDay(
+        (map['endDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      ),
       periodType: map['periodType'] ?? 'MONTHLY',
       note: map['note'] ?? '',
       status: map['status'] ?? 'SAFE',

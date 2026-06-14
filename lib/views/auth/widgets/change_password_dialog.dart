@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../utils/input_constraints.dart';
+
 class ChangePasswordDialog extends StatefulWidget {
   final User user;
 
@@ -74,6 +76,8 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 TextFormField(
                   controller: _currentController,
                   obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   autofillHints: const [AutofillHints.password],
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
@@ -87,6 +91,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 TextFormField(
                   controller: _newController,
                   obscureText: true,
+                  inputFormatters: newPasswordInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
                   autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
@@ -98,13 +105,10 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                     if (password.length > 32) {
                       return 'Mật khẩu mới không vượt quá 32 ký tự';
                     }
-                    if (RegExp(r'\s').hasMatch(password)) {
-                      return 'Mật khẩu không được chứa khoảng trắng';
-                    }
                     if (!RegExp(
-                      r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).+$',
+                      r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9@]{8,32}$',
                     ).hasMatch(password)) {
-                      return 'Cần có chữ hoa, chữ thường và số';
+                      return 'Cần chữ hoa, chữ thường, số; chỉ dùng a-z, A-Z, 0-9, @';
                     }
                     return null;
                   },
@@ -113,6 +117,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 TextFormField(
                   controller: _confirmController,
                   obscureText: true,
+                  inputFormatters: newPasswordInputFormatters(),
+                  autocorrect: false,
+                  enableSuggestions: false,
                   autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) {

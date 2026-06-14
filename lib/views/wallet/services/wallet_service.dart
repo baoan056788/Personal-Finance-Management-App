@@ -45,19 +45,44 @@ class WalletService {
   }
 
   Future<void> deleteWallet(String walletId) async {
+    final wallet = await _walletsRef.doc(walletId).get();
+    if (!wallet.exists) return;
+    final data = wallet.data() as Map<String, dynamic>;
+    final balance = (data['balance'] ?? 0).toDouble();
+    if (balance.abs() > 0.001) {
+      throw Exception('Chỉ có thể xóa ví khi số dư bằng 0');
+    }
+
     final transactions = await _walletsRef
         .doc(walletId)
         .collection('transactions')
+        .limit(1)
         .get();
-
-    final batch = _firestore.batch();
-    for (var doc in transactions.docs) {
-      batch.delete(doc.reference);
+    if (transactions.docs.isNotEmpty) {
+      throw Exception('Không thể xóa ví đã có lịch sử giao dịch');
     }
 
-    batch.delete(_walletsRef.doc(walletId));
+    final dependencies = await Future.wait([
+      _firestore
+          .collection('budgets')
+          .where('userId', isEqualTo: _uid)
+          .where('walletId', isEqualTo: walletId)
+          .limit(1)
+          .get(),
+      _firestore
+          .collection('recurring_transactions')
+          .where('userId', isEqualTo: _uid)
+          .where('walletId', isEqualTo: walletId)
+          .limit(1)
+          .get(),
+    ]);
+    if (dependencies.any((snapshot) => snapshot.docs.isNotEmpty)) {
+      throw Exception(
+        'Ví đang được sử dụng bởi ngân sách hoặc giao dịch định kỳ',
+      );
+    }
 
-    await batch.commit();
+    await wallet.reference.delete();
   }
 
   Future<void> transferMoney({
